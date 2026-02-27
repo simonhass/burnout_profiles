@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Simon">
+<meta name="dcterms.date" content="2026-02-27">
+
+<title>Latent profile analysis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="20260227_lpa_SH_files/libs/clipboard/clipboard.min.js"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/popper.min.js"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="20260227_lpa_SH_files/libs/quarto-html/anchor.min.js"></script>
+<link href="20260227_lpa_SH_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="20260227_lpa_SH_files/libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="20260227_lpa_SH_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="20260227_lpa_SH_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="20260227_lpa_SH_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="20260227_lpa_SH_files/libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet">
+
+<script src="20260227_lpa_SH_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<script src="20260227_lpa_SH_files/libs/plotly-binding-4.12.0/plotly.js"></script>
+
+<script src="20260227_lpa_SH_files/libs/typedarray-0.1/typedarray.min.js"></script>
+
+<script src="20260227_lpa_SH_files/libs/jquery-3.5.1/jquery.min.js"></script>
+
+<link href="20260227_lpa_SH_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+
+<script src="20260227_lpa_SH_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
+
+<link href="20260227_lpa_SH_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+
+<script src="20260227_lpa_SH_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
+
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Latent profile analysis</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Simon </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">February 27, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="preprocessing" class="level2">
+<h2 class="anchored" data-anchor-id="preprocessing">Preprocessing</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(writexl)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyLPA)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mclust)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggalluvial)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forcats)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nnet)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Add the data and set it up for my needs:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">setwd</span>(<span class="st">"~/EKFZ/02_coding/julian"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>mbi_data <span class="ot">=</span> <span class="fu">read_xlsx</span>(<span class="st">"20260205_MBI-GS Items DFG.xlsx"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>mbi_data <span class="ot">=</span> mbi_data <span class="sc">|&gt;</span> </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">case =</span> Lab_Nr) <span class="sc">|&gt;</span> </span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(case) <span class="sc">|&gt;</span> </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># reverse-code PE items  </span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">ends_with</span>(<span class="st">"_PE"</span>),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="sc">~</span> <span class="dv">6</span> <span class="sc">-</span> .x, <span class="at">.names =</span> <span class="st">"{.col}_IE"</span>)) </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">#select only relevant variables</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>mbi_data <span class="ot">=</span> mbi_data <span class="sc">|&gt;</span> </span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(case, T0_MBI1_EE, T0_MBI2_EE, T0_MBI3_EE, T0_MBI4_EE, T0_MBI5_PE_IE, T0_MBI6_EE, T0_MBI7_PE_IE,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>         T0_MBI8_CY, T0_MBI9_CY, T0_MBI10_PE_IE, T0_MBI11_PE_IE, T0_MBI12_PE, T0_MBI13_CY, T0_MBI14_CY, </span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>         T0_MBI15_CY, T0_MBI16_PE_IE,T1_MBI1_EE, T1_MBI2_EE, T1_MBI3_EE, T1_MBI4_EE, T1_MBI5_PE_IE, T1_MBI6_EE, T1_MBI7_PE_IE,</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>         T1_MBI8_CY, T1_MBI9_CY, T1_MBI10_PE_IE, T1_MBI11_PE_IE, T1_MBI12_PE, T1_MBI13_CY, T1_MBI14_CY, </span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>         T1_MBI15_CY, T1_MBI16_PE_IE)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>mbi_t0 <span class="ot">=</span> mbi_data <span class="sc">|&gt;</span> </span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(case, T0_MBI1_EE, T0_MBI2_EE, T0_MBI3_EE, T0_MBI4_EE, T0_MBI5_PE_IE, T0_MBI6_EE, T0_MBI7_PE_IE,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>         T0_MBI8_CY, T0_MBI9_CY, T0_MBI10_PE_IE, T0_MBI11_PE_IE, T0_MBI12_PE, T0_MBI13_CY, T0_MBI14_CY, </span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>         T0_MBI15_CY, T0_MBI16_PE_IE)</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>mbi_t1 <span class="ot">=</span> mbi_data <span class="sc">|&gt;</span> </span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(case,T1_MBI1_EE, T1_MBI2_EE, T1_MBI3_EE, T1_MBI4_EE, T1_MBI5_PE_IE, T1_MBI6_EE, T1_MBI7_PE_IE,</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>         T1_MBI8_CY, T1_MBI9_CY, T1_MBI10_PE_IE, T1_MBI11_PE_IE, T1_MBI12_PE, T1_MBI13_CY, T1_MBI14_CY, </span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>         T1_MBI15_CY, T1_MBI16_PE_IE)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Create mean scales for each timepoint so we can conduct <strong>LPA</strong> separately for each timepoint. Later, we will assess transitions and transition probabilities over time.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mbi_scales0 <span class="ot">=</span> mbi_t0 <span class="sc">|&gt;</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(case) <span class="sc">|&gt;</span> </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># compute means only if there are no NAs among the respective items</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">exhaustion =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"EE"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"EE"</span>))),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">inefficacy =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"IE"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"IE"</span>))),</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">cynicism =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"CY"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"CY"</span>)))) <span class="sc">|&gt;</span> </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(case, exhaustion, inefficacy, cynicism)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(mbi_scales0)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+   case exhaustion inefficacy cynicism
+  &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;
+1     3        3.4        2.2    3.2  
+2     4        1.2        0      0    
+3     6        3.6        2      4    
+4     7        1.6        0.8    0.967
+5     8        2.2        1      0.833
+6    10        5          1.4    2.07 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>mbi_scales1 <span class="ot">=</span> mbi_t1 <span class="sc">|&gt;</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(case) <span class="sc">|&gt;</span> </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># compute means only if there are no NAs among the respective items</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">exhaustion =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"EE"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"EE"</span>))),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">inefficacy =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"IE"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"IE"</span>))),</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">cynicism =</span> <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"CY"</span>))))) <span class="cn">NA_real_</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">mean</span>(<span class="fu">c_across</span>(<span class="fu">ends_with</span>(<span class="st">"CY"</span>)))) <span class="sc">|&gt;</span> </span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(case, exhaustion, inefficacy, cynicism)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(mbi_scales1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+   case exhaustion inefficacy cynicism
+  &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;
+1     3        5.2        2      4    
+2     4        3.6        0      0    
+3     6        3.2        2      3.83 
+4     7        1          0.8    0.967
+5     8        2.8        0.8    2.63 
+6    10        4.2        1.2    2.37 </code></pre>
+</div>
+</div>
+</section>
+<section id="latent-profile-analysis-lpa-for-timepoint-0" class="level2">
+<h2 class="anchored" data-anchor-id="latent-profile-analysis-lpa-for-timepoint-0">Latent Profile Analysis (LPA) for timepoint 0:</h2>
+<p>Within each profile, exhaustion, cynicism, inefficacy are assumed to be independent - any observed correlation is explained entirely by profile membership.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>mbi_lpa0 <span class="ot">=</span> mbi_scales0 <span class="sc">|&gt;</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(exhaustion, inefficacy, cynicism)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>lpa <span class="ot">=</span> mbi_lpa0 <span class="sc">|&gt;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">estimate_profiles</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">9</span>,                        </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>                    <span class="at">variances =</span> <span class="st">"equal"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                    <span class="at">covariances =</span> <span class="st">"zero"</span>) </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co">#class enumeration with model fit indices</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">get_fit</span>(lpa)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 9 × 18
+  Model Classes LogLik   AIC   AWE   BIC  CAIC   CLC   KIC SABIC    ICL Entropy
+  &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+1     1       1 -1407. 2825. 2898. 2848. 2854. 2815. 2834. 2829. -2848.   1    
+2     1       2 -1298. 2617. 2739. 2654. 2664. 2598. 2630. 2622. -2704.   0.773
+3     1       3 -1270. 2569. 2741. 2621. 2635. 2542. 2586. 2576. -2694.   0.763
+4     1       4 -1250. 2535. 2757. 2602. 2620. 2501. 2556. 2545. -2662.   0.843
+5     1       5 -1238. 2520. 2791. 2602. 2624. 2478. 2545. 2532. -2694.   0.803
+6     1       6 -1238. 2527. 2848. 2624. 2650. 2477. 2556. 2541. -2799.   0.706
+7     1       7 -1229. 2517. 2888. 2628. 2658. 2459. 2550. 2533. -2776.   0.754
+8     1       8 -1221. 2511. 2931. 2637. 2671. 2444. 2548. 2529. -2779.   0.773
+9     1       9 -1215. 2506. 2976. 2647. 2685. 2432. 2547. 2526. -2752.   0.826
+# ℹ 6 more variables: prob_min &lt;dbl&gt;, prob_max &lt;dbl&gt;, n_min &lt;dbl&gt;, n_max &lt;dbl&gt;,
+#   BLRT_val &lt;dbl&gt;, BLRT_p &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<p>Evidently, the <strong>3-class solution</strong> seems to be superior:</p>
+<ol type="1">
+<li><p>lower BIC than previous class solutions and marginal gap to the 4/5 class solution</p></li>
+<li><p>good, but lower entropy than other class solutions</p></li>
+<li><p>most robust sample size per class - other models fit classes for 5 participants</p></li>
+</ol>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lpa_3 <span class="ot">=</span> lpa[[<span class="dv">3</span>]]</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>mbi_profiles03 <span class="ot">=</span> lpa_3 <span class="sc">|&gt;</span> </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">get_data</span>()</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># class models containing &lt; 5% of the sample are rejected</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>c1 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles03, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">1</span>))) <span class="co">#65 (~22%)</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>c2 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles03, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">2</span>))) <span class="co">#121 (~40%)</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>c3 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles03, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">3</span>))) <span class="co">#114 (~38%)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Class 1 now contains 65 participants, class 2 contains 121 and class 3 114 participants. Way to go! Now we will generate line plots that depict each classes’ mean exhaustion, cynicism, and inefficacy scores:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>line_plots03 <span class="ot">=</span> mbi_profiles03 <span class="sc">|&gt;</span> </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="fu">c</span>(exhaustion, inefficacy, cynicism),</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"dimension"</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"score"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Class, dimension) <span class="sc">|&gt;</span> </span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_score =</span> <span class="fu">mean</span>(score),</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#specify colors</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>profile_colors03 <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">"1"</span> <span class="ot">=</span> <span class="st">"midnightblue"</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2"</span> <span class="ot">=</span> <span class="st">"lightskyblue"</span>,</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">"3"</span> <span class="ot">=</span> <span class="st">"steelblue3"</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>line_plots03 <span class="ot">=</span> line_plots03 <span class="sc">|&gt;</span> </span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Class =</span> <span class="fu">factor</span>(Class)) <span class="sc">|&gt;</span> </span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">dimension =</span> <span class="fu">factor</span>(dimension,<span class="at">levels =</span> </span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>                              <span class="fu">c</span>(<span class="st">"exhaustion"</span>, <span class="st">"cynicism"</span>, <span class="st">"inefficacy"</span>)))</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>fig1 <span class="ot">=</span> <span class="fu">ggplot</span>(line_plots03, <span class="fu">aes</span>(<span class="at">x =</span> dimension, <span class="at">y =</span> mean_score,</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>                              <span class="at">group =</span> Class, <span class="at">color =</span> Class)) <span class="sc">+</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> profile_colors03, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"1"</span>, <span class="st">"3"</span>, <span class="st">"2"</span>),</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>                     <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Disengaged/Burnout"</span>,<span class="st">"Overextended"</span>,<span class="st">"Engagement"</span>)) <span class="sc">+</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> <span class="fu">c</span>(</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">exhaustion =</span> <span class="st">"Exhaustion"</span>,</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">inefficacy   =</span> <span class="st">"Inefficacy"</span>,</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">cynicism   =</span> <span class="st">"Cynicism"</span>)) <span class="sc">+</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">y =</span> <span class="st">"Mean Score"</span>, <span class="at">x =</span> <span class="st">""</span>, <span class="at">color =</span> <span class="st">"Profile"</span>) <span class="sc">+</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>   <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">6</span>)) <span class="sc">+</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fig1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="20260227_lpa_SH_files/figure-html/line%20plots%200-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#ggsave("T0_lpa_3.png", fig1, width = 8, height = 6, bg = "white")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>We can also create 3d scatterplots to show the distribution of individual mean values:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'plotly'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:ggplot2':
+
+    last_plot</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:stats':
+
+    filter</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:graphics':
+
+    layout</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">=</span> <span class="fu">plot_ly</span>(<span class="at">x=</span>mbi_profiles03<span class="sc">$</span>inefficacy, <span class="at">y=</span>mbi_profiles03<span class="sc">$</span>cynicism, <span class="at">z=</span>mbi_profiles03<span class="sc">$</span>exhaustion, </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>               <span class="at">type=</span><span class="st">"scatter3d"</span>, <span class="at">mode=</span><span class="st">"markers"</span>, <span class="at">color=</span>mbi_profiles03<span class="sc">$</span>Class, <span class="at">colors =</span> profile_colors03)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">=</span> plot <span class="sc">|&gt;</span> </span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="at">title =</span> <span class="st">"Burnout profiles"</span>,</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">scene =</span> <span class="fu">list</span>(</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>           <span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Inefficacy"</span>),</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Cynicism"</span>),</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>           <span class="at">zaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Exhaustion"</span>)))</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-cdd6dfe9069a7f8e7d1d" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-cdd6dfe9069a7f8e7d1d">{"x":{"visdat":{"41c843354517":["function () ","plotlyVisDat"]},"cur_data":"41c843354517","attrs":{"41c843354517":{"x":[2.2000000000000002,0,2,0.80000000000000004,1,1.3999999999999999,0.80000000000000004,0.59999999999999998,1.8,1.6000000000000001,0,1.6000000000000001,1.2,2.7999999999999998,1.3999999999999999,1.3999999999999999,1.3999999999999999,2.2000000000000002,2.7999999999999998,1,2.7999999999999998,1.2,0.80000000000000004,1.2,1,1.2,1.2,1,1.3999999999999999,0,2.6000000000000001,1.6000000000000001,0.59999999999999998,2.6000000000000001,1.2,3.2000000000000002,1.6000000000000001,2.3999999999999999,1.2,1.6000000000000001,2,2.7999999999999998,1.3999999999999999,2.2000000000000002,1.6000000000000001,0.40000000000000002,2,2.6000000000000001,1.6000000000000001,0.20000000000000001,0.80000000000000004,1,1.3999999999999999,1.6000000000000001,0.80000000000000004,1.6000000000000001,2,1.3999999999999999,1.3999999999999999,0.59999999999999998,1.8,0.59999999999999998,0.80000000000000004,1,1,0.20000000000000001,1.2,1.8,0.80000000000000004,0.40000000000000002,1.3999999999999999,2.7999999999999998,0,1.2,1.2,1.8,1.6000000000000001,1.2,0.40000000000000002,2,0.80000000000000004,0.80000000000000004,1.8,0.59999999999999998,1,2,0.59999999999999998,1,0.20000000000000001,1.6000000000000001,1.3999999999999999,1.8,4,0.80000000000000004,0.40000000000000002,1.3999999999999999,1.6000000000000001,0.59999999999999998,1.3999999999999999,1,1.6000000000000001,0.20000000000000001,2.2000000000000002,2,2.2000000000000002,0.59999999999999998,1,2,2.6000000000000001,1.8,1.6000000000000001,1.3999999999999999,0,1.6000000000000001,2.2000000000000002,1,1.3999999999999999,3,1.6000000000000001,2.6000000000000001,2,0,1.3999999999999999,1,3,0.80000000000000004,1,1,0.80000000000000004,1,2.3999999999999999,1.2,1,1.8,0.59999999999999998,0.80000000000000004,0.59999999999999998,4,0,1.2,1.6000000000000001,1,1,3.3999999999999999,0.59999999999999998,5,1.2,2.2000000000000002,2.6000000000000001,0.59999999999999998,1.8,0.20000000000000001,1.6000000000000001,1,1.3999999999999999,1.2,1,1.8,2.6000000000000001,0,3.7999999999999998,1.3999999999999999,1,1.6000000000000001,2,1.2,1.8,0.80000000000000004,1.6000000000000001,2.2000000000000002,1.2,2.3999999999999999,0.80000000000000004,2.7999999999999998,1,1.6000000000000001,1.3999999999999999,3.2000000000000002,0.59999999999999998,1.8,0.20000000000000001,0.20000000000000001,0.40000000000000002,1.3999999999999999,1.8,1,1.3999999999999999,2.7999999999999998,1,3.2000000000000002,0,0.40000000000000002,0.80000000000000004,2.2000000000000002,1,1.8,1.6000000000000001,1.3999999999999999,1,0.40000000000000002,1,0.59999999999999998,1.3999999999999999,0.59999999999999998,2.7999999999999998,1.2,3.2000000000000002,1.8,1.2,1,2.3999999999999999,2.2000000000000002,0.40000000000000002,0.59999999999999998,1.6000000000000001,2.2000000000000002,0.40000000000000002,2.2000000000000002,0.59999999999999998,3.7999999999999998,0,0.80000000000000004,2.2000000000000002,1.2,0.40000000000000002,1,2.3999999999999999,4,0.20000000000000001,1,0.80000000000000004,1.2,0.80000000000000004,0,2.3999999999999999,1.8,2.6000000000000001,0.80000000000000004,0.20000000000000001,1.8,0.59999999999999998,1.8,0.59999999999999998,2.2000000000000002,2.7999999999999998,1.6000000000000001,2.2000000000000002,1.8,0.40000000000000002,0.80000000000000004,1.3999999999999999,0.20000000000000001,1.8,1,1.2,1.3999999999999999,0.20000000000000001,0.20000000000000001,0.40000000000000002,0.59999999999999998,0.80000000000000004,1.2,0.59999999999999998,0.80000000000000004,2.3999999999999999,1,1.3999999999999999,0.80000000000000004,2.6000000000000001,1,1.8,1,1,2,0.40000000000000002,1.2,2,5,0.59999999999999998,0,1.3999999999999999,0.59999999999999998,2.2000000000000002,1.6000000000000001,0.59999999999999998,1.8,0.80000000000000004,0.59999999999999998,0.20000000000000001,0,1.3999999999999999,1.6000000000000001,2.2000000000000002,3.7999999999999998,2,1.8,1.8,1,0.20000000000000001,2.3999999999999999],"y":[3.2000000000000002,0,4,0.96666666666666667,0.83333333333333337,2.0666666666666664,0.46666666666666667,0.59999999999999998,1.3,2.6000000000000001,0,2.4333333333333336,0.53333333333333333,3.6333333333333333,1.7333333333333334,0.73333333333333328,3.0666666666666664,0.70000000000000007,4.4666666666666668,1.5,2.4666666666666668,0.8666666666666667,0.29999999999999999,3.7000000000000002,1.3333333333333333,0.8666666666666667,0.19999999999999998,0.83333333333333337,1.5666666666666667,0,4.0999999999999996,2.2666666666666666,0.26666666666666666,2.4333333333333336,0.8666666666666667,4.0333333333333332,1.1000000000000001,1.7333333333333334,2.3666666666666667,0.93333333333333335,0.83333333333333337,3.6333333333333333,2.5666666666666664,2.2000000000000002,2.9333333333333336,0.56666666666666665,1.8333333333333333,3.9333333333333336,1.7666666666666666,0.3666666666666667,1.9666666666666668,0.5,0.73333333333333328,3.1000000000000001,1.3,3.1000000000000001,1.3333333333333333,1.7333333333333334,1.3999999999999999,0.93333333333333335,1.9666666666666668,0.26666666666666666,0.46666666666666667,2.3333333333333335,1.1666666666666667,0.69999999999999996,2.8666666666666667,2.1333333333333333,0.46666666666666667,1.2333333333333334,3.0666666666666664,3.6333333333333333,1.1666666666666667,2.5333333333333332,0.69999999999999996,2.1333333333333333,0.59999999999999998,1.2,2.8999999999999999,3,0.6333333333333333,0.29999999999999999,1.4666666666666668,2.2666666666666666,1.1666666666666667,2,1.7666666666666666,0.16666666666666666,0.3666666666666667,1.6000000000000001,1.5666666666666667,1.1333333333333333,3.5,0.46666666666666667,1.8999999999999999,0.23333333333333331,3.2666666666666666,0.76666666666666661,1.5666666666666667,1.1666666666666667,3.7666666666666666,0.033333333333333333,1.7,2.5,3.2000000000000002,0.099999999999999992,2,2,2.4333333333333336,1.3,1.2666666666666666,2.2333333333333334,1.8333333333333333,3.2666666666666666,1.3666666666666667,3.6666666666666665,1.3999999999999999,3,3.9333333333333336,3.2666666666666666,1.6666666666666667,1.3333333333333333,3.7333333333333334,0.5,1.1666666666666667,0.6333333333333333,2.6666666666666665,1.3333333333333333,0.6333333333333333,0.16666666666666666,3.3999999999999999,1.0333333333333332,0.5,3.1333333333333333,0.26666666666666666,0.29999999999999999,0.43333333333333335,2.3333333333333335,0.16666666666666666,3.8666666666666667,2.9333333333333336,1.1666666666666667,0.83333333333333337,3.2333333333333334,2.1000000000000001,4,2.3666666666666667,1.5333333333333334,1.1000000000000001,0.43333333333333335,3.2999999999999998,0.8666666666666667,2.4333333333333336,1.8333333333333333,1.7333333333333334,3.0333333333333332,0.5,3.1333333333333333,2.1000000000000001,0.5,1.8,1.8999999999999999,1.8333333333333333,3.1000000000000001,0.66666666666666663,0.53333333333333333,3.1333333333333333,0.29999999999999999,2.4333333333333336,3.3666666666666667,1.5333333333333332,1.2333333333333334,0.80000000000000004,1.9666666666666666,2.5,0.76666666666666672,3.8999999999999999,5.0333333333333332,0.59999999999999998,2.2999999999999998,0.53333333333333333,0.033333333333333333,0.066666666666666666,4.2333333333333334,2.1333333333333333,1.3333333333333333,0.39999999999999997,2.6333333333333333,3,1.8666666666666667,0,2.0666666666666669,0.29999999999999999,4.3666666666666671,2,3.9666666666666668,0.43333333333333335,0.23333333333333331,1,1.0666666666666667,0.83333333333333337,2.2666666666666666,1.2333333333333334,0.099999999999999992,5.4666666666666668,2.0333333333333332,4.2000000000000002,3.1333333333333333,0.53333333333333333,0.66666666666666663,2.7333333333333334,2.0333333333333332,4.0666666666666664,0.59999999999999998,4.2666666666666666,1.0333333333333334,0.73333333333333339,2.0333333333333332,0.59999999999999998,3.6333333333333333,1.5,0.80000000000000004,2.0333333333333332,4.0333333333333332,0.56666666666666665,2.3333333333333335,0.39999999999999997,2.5,0.3666666666666667,1.5,1.6333333333333333,0.69999999999999996,0.80000000000000004,0.66666666666666663,2.0666666666666664,1.1333333333333333,3.2666666666666666,0.96666666666666667,0.8666666666666667,2.2999999999999998,0.43333333333333335,3.6333333333333333,0.26666666666666666,0.8666666666666667,2.9666666666666668,2.1000000000000001,2.3666666666666667,3.9666666666666668,2.2333333333333334,2.7999999999999998,0.39999999999999997,0.53333333333333333,3.7999999999999998,2.3333333333333335,1.3666666666666667,4.0666666666666664,1.0333333333333334,1.3666666666666667,0.23333333333333334,0.43333333333333335,1.6333333333333333,1.5333333333333332,3.1000000000000001,0.6333333333333333,1.3999999999999999,0.33333333333333331,1.8999999999999999,0.6333333333333333,2.7666666666666666,0.83333333333333337,3.2999999999999998,1.6666666666666667,3.6666666666666665,2.6666666666666665,1.3999999999999999,0.53333333333333333,1.1666666666666667,5.666666666666667,1.4333333333333333,0.33333333333333331,1.5666666666666667,2.1000000000000001,3.8666666666666667,0.93333333333333335,1.2666666666666666,2.7999999999999998,2.6333333333333333,1.1000000000000001,0.20000000000000001,0.16666666666666666,0.90000000000000002,0.93333333333333335,5.2000000000000002,3.9666666666666668,3.1666666666666665,2.7999999999999998,3.1333333333333333,0.66666666666666663,1.3666666666666667,0.90000000000000002],"z":[3.3999999999999999,1.2,3.6000000000000001,1.6000000000000001,2.2000000000000002,5,0.80000000000000004,0,4.5999999999999996,1.8,0.20000000000000001,3.6000000000000001,0.20000000000000001,2,4.2000000000000002,1.3999999999999999,0.80000000000000004,0.40000000000000002,2.2000000000000002,1.2,2,0.40000000000000002,0.40000000000000002,2.6000000000000001,0.80000000000000004,0.80000000000000004,2.6000000000000001,1.3999999999999999,1.3999999999999999,0,4.5999999999999996,4.4000000000000004,0,3.3999999999999999,1,4.2000000000000002,1,2.7999999999999998,1,3.2000000000000002,1.2,4,2,2,3.3999999999999999,2.2000000000000002,3.2000000000000002,4.2000000000000002,4.2000000000000002,1.2,4.5999999999999996,1,2.3999999999999999,1.6000000000000001,0.20000000000000001,3.2000000000000002,1.3999999999999999,2.3999999999999999,0.59999999999999998,1.2,4.5999999999999996,1.3999999999999999,0.80000000000000004,0.59999999999999998,1.8,0.20000000000000001,2,3.2000000000000002,0.59999999999999998,3.3999999999999999,3.7999999999999998,3.6000000000000001,2,2.3999999999999999,1.8,1,1,1,0.40000000000000002,3.6000000000000001,1,0.80000000000000004,4.2000000000000002,3,2.7999999999999998,2.3999999999999999,2.6000000000000001,0.40000000000000002,2.3999999999999999,3.3999999999999999,3,0.40000000000000002,2.7999999999999998,2.2000000000000002,4.5999999999999996,0.40000000000000002,4.4000000000000004,1.3999999999999999,2.3999999999999999,2,2.3999999999999999,0.40000000000000002,1.3999999999999999,2.3999999999999999,2.3999999999999999,0.20000000000000001,2.3999999999999999,2.6000000000000001,3.6000000000000001,3.6000000000000001,1.6000000000000001,1.8,3,3.7999999999999998,3.2000000000000002,4.7999999999999998,1.2,3.3999999999999999,2,4.4000000000000004,2,3.7999999999999998,0.59999999999999998,4,3.6000000000000001,4.4000000000000004,4.4000000000000004,4.2000000000000002,0.40000000000000002,0.59999999999999998,5.2000000000000002,1.8,1.6000000000000001,4.7999999999999998,1,1,0.59999999999999998,2.2000000000000002,0.20000000000000001,5,5.2000000000000002,1.3999999999999999,1.8,4.7999999999999998,2.6000000000000001,5,2.7999999999999998,2.7999999999999998,2.2000000000000002,1.6000000000000001,2.7999999999999998,0.80000000000000004,3.2000000000000002,2.2000000000000002,3.2000000000000002,4.4000000000000004,5,5.2000000000000002,2.6000000000000001,2.2000000000000002,1.3999999999999999,4.2000000000000002,2.7999999999999998,3.6000000000000001,4.2000000000000002,3.2000000000000002,1.3999999999999999,0.40000000000000002,2.6000000000000001,2.6000000000000001,3,3.2000000000000002,1.2,2.6000000000000001,3.7999999999999998,2.3999999999999999,5,5.2000000000000002,1.2,2.7999999999999998,0.59999999999999998,1,1.2,4.5999999999999996,4.7999999999999998,1,0.80000000000000004,4.2000000000000002,2.3999999999999999,4,3.3999999999999999,2.7999999999999998,2.3999999999999999,3.3999999999999999,1.6000000000000001,4.7999999999999998,3.2000000000000002,1,2.2000000000000002,3.6000000000000001,3.6000000000000001,3.6000000000000001,2.6000000000000001,1.2,5,1,4.2000000000000002,3.3999999999999999,1.8,1.2,4.5999999999999996,2.3999999999999999,3.6000000000000001,2.6000000000000001,4.2000000000000002,4.2000000000000002,1.6000000000000001,2.6000000000000001,3.3999999999999999,4.4000000000000004,1.3999999999999999,1,2.6000000000000001,3.7999999999999998,0,2,1.2,3.2000000000000002,1,2.2000000000000002,2.2000000000000002,2.3999999999999999,1.2,2.2000000000000002,3.7999999999999998,2,3,3,6,2.6000000000000001,4.7999999999999998,4.7999999999999998,1.3999999999999999,4.2000000000000002,3.2000000000000002,2.7999999999999998,4.4000000000000004,5.5999999999999996,2.6000000000000001,1,1.8,3.2000000000000002,2.3999999999999999,3.2000000000000002,2.7999999999999998,3.2000000000000002,2.7999999999999998,2.3999999999999999,3.6000000000000001,1.3999999999999999,3,3.6000000000000001,3.6000000000000001,1.6000000000000001,2.2000000000000002,1.8,2.2000000000000002,2.6000000000000001,4.2000000000000002,1.2,4.7999999999999998,3.2000000000000002,4.7999999999999998,2.7999999999999998,4.5999999999999996,0.59999999999999998,2,5.4000000000000004,3,0.20000000000000001,3,2.6000000000000001,4,3.7999999999999998,3.6000000000000001,4.5999999999999996,5,1,1.2,0.59999999999999998,2,2.2000000000000002,5.2000000000000002,3.3999999999999999,3,2.7999999999999998,4,1.2,1,1.8],"mode":"markers","color":[1,2,1,2,2,3,2,2,3,3,2,3,2,1,3,2,3,2,1,2,3,2,2,1,2,2,2,2,3,2,1,3,2,3,2,1,2,3,3,3,2,1,3,3,3,2,3,1,3,2,3,2,2,3,2,1,3,3,2,2,3,2,2,3,2,2,3,3,2,3,1,1,2,3,2,3,2,2,3,1,2,2,3,3,2,3,3,2,2,3,3,2,1,2,3,2,1,2,3,2,1,2,3,3,1,2,3,3,3,3,2,3,3,1,3,1,2,1,1,1,3,3,1,2,3,2,3,3,2,2,1,2,2,1,2,2,2,3,2,1,1,2,2,1,3,1,3,3,3,2,1,2,3,3,3,1,3,1,3,2,3,3,3,1,3,2,3,2,3,1,3,3,2,3,3,2,1,1,2,3,2,2,2,1,3,2,2,1,3,3,2,3,2,1,3,1,2,2,2,2,2,3,3,2,1,3,1,1,2,2,1,3,1,2,1,3,2,3,2,1,2,2,3,1,2,3,2,1,2,3,3,2,2,2,3,2,1,2,3,3,2,1,2,3,1,3,3,1,3,3,2,2,1,3,3,1,2,2,2,2,3,3,3,2,3,2,3,2,1,2,1,3,1,3,3,2,3,1,3,2,3,3,1,3,3,1,3,2,2,2,2,2,1,1,1,3,1,2,2,2],"colors":["midnightblue","lightskyblue","steelblue3"],"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter3d"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"title":"Burnout profiles","scene":{"xaxis":{"title":"Inefficacy"},"yaxis":{"title":"Cynicism"},"zaxis":{"title":"Exhaustion"}},"hovermode":"closest","showlegend":false,"legend":{"yanchor":"top","y":0.5}},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"x":[2.2000000000000002,0,2,0.80000000000000004,1,1.3999999999999999,0.80000000000000004,0.59999999999999998,1.8,1.6000000000000001,0,1.6000000000000001,1.2,2.7999999999999998,1.3999999999999999,1.3999999999999999,1.3999999999999999,2.2000000000000002,2.7999999999999998,1,2.7999999999999998,1.2,0.80000000000000004,1.2,1,1.2,1.2,1,1.3999999999999999,0,2.6000000000000001,1.6000000000000001,0.59999999999999998,2.6000000000000001,1.2,3.2000000000000002,1.6000000000000001,2.3999999999999999,1.2,1.6000000000000001,2,2.7999999999999998,1.3999999999999999,2.2000000000000002,1.6000000000000001,0.40000000000000002,2,2.6000000000000001,1.6000000000000001,0.20000000000000001,0.80000000000000004,1,1.3999999999999999,1.6000000000000001,0.80000000000000004,1.6000000000000001,2,1.3999999999999999,1.3999999999999999,0.59999999999999998,1.8,0.59999999999999998,0.80000000000000004,1,1,0.20000000000000001,1.2,1.8,0.80000000000000004,0.40000000000000002,1.3999999999999999,2.7999999999999998,0,1.2,1.2,1.8,1.6000000000000001,1.2,0.40000000000000002,2,0.80000000000000004,0.80000000000000004,1.8,0.59999999999999998,1,2,0.59999999999999998,1,0.20000000000000001,1.6000000000000001,1.3999999999999999,1.8,4,0.80000000000000004,0.40000000000000002,1.3999999999999999,1.6000000000000001,0.59999999999999998,1.3999999999999999,1,1.6000000000000001,0.20000000000000001,2.2000000000000002,2,2.2000000000000002,0.59999999999999998,1,2,2.6000000000000001,1.8,1.6000000000000001,1.3999999999999999,0,1.6000000000000001,2.2000000000000002,1,1.3999999999999999,3,1.6000000000000001,2.6000000000000001,2,0,1.3999999999999999,1,3,0.80000000000000004,1,1,0.80000000000000004,1,2.3999999999999999,1.2,1,1.8,0.59999999999999998,0.80000000000000004,0.59999999999999998,4,0,1.2,1.6000000000000001,1,1,3.3999999999999999,0.59999999999999998,5,1.2,2.2000000000000002,2.6000000000000001,0.59999999999999998,1.8,0.20000000000000001,1.6000000000000001,1,1.3999999999999999,1.2,1,1.8,2.6000000000000001,0,3.7999999999999998,1.3999999999999999,1,1.6000000000000001,2,1.2,1.8,0.80000000000000004,1.6000000000000001,2.2000000000000002,1.2,2.3999999999999999,0.80000000000000004,2.7999999999999998,1,1.6000000000000001,1.3999999999999999,3.2000000000000002,0.59999999999999998,1.8,0.20000000000000001,0.20000000000000001,0.40000000000000002,1.3999999999999999,1.8,1,1.3999999999999999,2.7999999999999998,1,3.2000000000000002,0,0.40000000000000002,0.80000000000000004,2.2000000000000002,1,1.8,1.6000000000000001,1.3999999999999999,1,0.40000000000000002,1,0.59999999999999998,1.3999999999999999,0.59999999999999998,2.7999999999999998,1.2,3.2000000000000002,1.8,1.2,1,2.3999999999999999,2.2000000000000002,0.40000000000000002,0.59999999999999998,1.6000000000000001,2.2000000000000002,0.40000000000000002,2.2000000000000002,0.59999999999999998,3.7999999999999998,0,0.80000000000000004,2.2000000000000002,1.2,0.40000000000000002,1,2.3999999999999999,4,0.20000000000000001,1,0.80000000000000004,1.2,0.80000000000000004,0,2.3999999999999999,1.8,2.6000000000000001,0.80000000000000004,0.20000000000000001,1.8,0.59999999999999998,1.8,0.59999999999999998,2.2000000000000002,2.7999999999999998,1.6000000000000001,2.2000000000000002,1.8,0.40000000000000002,0.80000000000000004,1.3999999999999999,0.20000000000000001,1.8,1,1.2,1.3999999999999999,0.20000000000000001,0.20000000000000001,0.40000000000000002,0.59999999999999998,0.80000000000000004,1.2,0.59999999999999998,0.80000000000000004,2.3999999999999999,1,1.3999999999999999,0.80000000000000004,2.6000000000000001,1,1.8,1,1,2,0.40000000000000002,1.2,2,5,0.59999999999999998,0,1.3999999999999999,0.59999999999999998,2.2000000000000002,1.6000000000000001,0.59999999999999998,1.8,0.80000000000000004,0.59999999999999998,0.20000000000000001,0,1.3999999999999999,1.6000000000000001,2.2000000000000002,3.7999999999999998,2,1.8,1.8,1,0.20000000000000001,2.3999999999999999],"y":[3.2000000000000002,0,4,0.96666666666666667,0.83333333333333337,2.0666666666666664,0.46666666666666667,0.59999999999999998,1.3,2.6000000000000001,0,2.4333333333333336,0.53333333333333333,3.6333333333333333,1.7333333333333334,0.73333333333333328,3.0666666666666664,0.70000000000000007,4.4666666666666668,1.5,2.4666666666666668,0.8666666666666667,0.29999999999999999,3.7000000000000002,1.3333333333333333,0.8666666666666667,0.19999999999999998,0.83333333333333337,1.5666666666666667,0,4.0999999999999996,2.2666666666666666,0.26666666666666666,2.4333333333333336,0.8666666666666667,4.0333333333333332,1.1000000000000001,1.7333333333333334,2.3666666666666667,0.93333333333333335,0.83333333333333337,3.6333333333333333,2.5666666666666664,2.2000000000000002,2.9333333333333336,0.56666666666666665,1.8333333333333333,3.9333333333333336,1.7666666666666666,0.3666666666666667,1.9666666666666668,0.5,0.73333333333333328,3.1000000000000001,1.3,3.1000000000000001,1.3333333333333333,1.7333333333333334,1.3999999999999999,0.93333333333333335,1.9666666666666668,0.26666666666666666,0.46666666666666667,2.3333333333333335,1.1666666666666667,0.69999999999999996,2.8666666666666667,2.1333333333333333,0.46666666666666667,1.2333333333333334,3.0666666666666664,3.6333333333333333,1.1666666666666667,2.5333333333333332,0.69999999999999996,2.1333333333333333,0.59999999999999998,1.2,2.8999999999999999,3,0.6333333333333333,0.29999999999999999,1.4666666666666668,2.2666666666666666,1.1666666666666667,2,1.7666666666666666,0.16666666666666666,0.3666666666666667,1.6000000000000001,1.5666666666666667,1.1333333333333333,3.5,0.46666666666666667,1.8999999999999999,0.23333333333333331,3.2666666666666666,0.76666666666666661,1.5666666666666667,1.1666666666666667,3.7666666666666666,0.033333333333333333,1.7,2.5,3.2000000000000002,0.099999999999999992,2,2,2.4333333333333336,1.3,1.2666666666666666,2.2333333333333334,1.8333333333333333,3.2666666666666666,1.3666666666666667,3.6666666666666665,1.3999999999999999,3,3.9333333333333336,3.2666666666666666,1.6666666666666667,1.3333333333333333,3.7333333333333334,0.5,1.1666666666666667,0.6333333333333333,2.6666666666666665,1.3333333333333333,0.6333333333333333,0.16666666666666666,3.3999999999999999,1.0333333333333332,0.5,3.1333333333333333,0.26666666666666666,0.29999999999999999,0.43333333333333335,2.3333333333333335,0.16666666666666666,3.8666666666666667,2.9333333333333336,1.1666666666666667,0.83333333333333337,3.2333333333333334,2.1000000000000001,4,2.3666666666666667,1.5333333333333334,1.1000000000000001,0.43333333333333335,3.2999999999999998,0.8666666666666667,2.4333333333333336,1.8333333333333333,1.7333333333333334,3.0333333333333332,0.5,3.1333333333333333,2.1000000000000001,0.5,1.8,1.8999999999999999,1.8333333333333333,3.1000000000000001,0.66666666666666663,0.53333333333333333,3.1333333333333333,0.29999999999999999,2.4333333333333336,3.3666666666666667,1.5333333333333332,1.2333333333333334,0.80000000000000004,1.9666666666666666,2.5,0.76666666666666672,3.8999999999999999,5.0333333333333332,0.59999999999999998,2.2999999999999998,0.53333333333333333,0.033333333333333333,0.066666666666666666,4.2333333333333334,2.1333333333333333,1.3333333333333333,0.39999999999999997,2.6333333333333333,3,1.8666666666666667,0,2.0666666666666669,0.29999999999999999,4.3666666666666671,2,3.9666666666666668,0.43333333333333335,0.23333333333333331,1,1.0666666666666667,0.83333333333333337,2.2666666666666666,1.2333333333333334,0.099999999999999992,5.4666666666666668,2.0333333333333332,4.2000000000000002,3.1333333333333333,0.53333333333333333,0.66666666666666663,2.7333333333333334,2.0333333333333332,4.0666666666666664,0.59999999999999998,4.2666666666666666,1.0333333333333334,0.73333333333333339,2.0333333333333332,0.59999999999999998,3.6333333333333333,1.5,0.80000000000000004,2.0333333333333332,4.0333333333333332,0.56666666666666665,2.3333333333333335,0.39999999999999997,2.5,0.3666666666666667,1.5,1.6333333333333333,0.69999999999999996,0.80000000000000004,0.66666666666666663,2.0666666666666664,1.1333333333333333,3.2666666666666666,0.96666666666666667,0.8666666666666667,2.2999999999999998,0.43333333333333335,3.6333333333333333,0.26666666666666666,0.8666666666666667,2.9666666666666668,2.1000000000000001,2.3666666666666667,3.9666666666666668,2.2333333333333334,2.7999999999999998,0.39999999999999997,0.53333333333333333,3.7999999999999998,2.3333333333333335,1.3666666666666667,4.0666666666666664,1.0333333333333334,1.3666666666666667,0.23333333333333334,0.43333333333333335,1.6333333333333333,1.5333333333333332,3.1000000000000001,0.6333333333333333,1.3999999999999999,0.33333333333333331,1.8999999999999999,0.6333333333333333,2.7666666666666666,0.83333333333333337,3.2999999999999998,1.6666666666666667,3.6666666666666665,2.6666666666666665,1.3999999999999999,0.53333333333333333,1.1666666666666667,5.666666666666667,1.4333333333333333,0.33333333333333331,1.5666666666666667,2.1000000000000001,3.8666666666666667,0.93333333333333335,1.2666666666666666,2.7999999999999998,2.6333333333333333,1.1000000000000001,0.20000000000000001,0.16666666666666666,0.90000000000000002,0.93333333333333335,5.2000000000000002,3.9666666666666668,3.1666666666666665,2.7999999999999998,3.1333333333333333,0.66666666666666663,1.3666666666666667,0.90000000000000002],"z":[3.3999999999999999,1.2,3.6000000000000001,1.6000000000000001,2.2000000000000002,5,0.80000000000000004,0,4.5999999999999996,1.8,0.20000000000000001,3.6000000000000001,0.20000000000000001,2,4.2000000000000002,1.3999999999999999,0.80000000000000004,0.40000000000000002,2.2000000000000002,1.2,2,0.40000000000000002,0.40000000000000002,2.6000000000000001,0.80000000000000004,0.80000000000000004,2.6000000000000001,1.3999999999999999,1.3999999999999999,0,4.5999999999999996,4.4000000000000004,0,3.3999999999999999,1,4.2000000000000002,1,2.7999999999999998,1,3.2000000000000002,1.2,4,2,2,3.3999999999999999,2.2000000000000002,3.2000000000000002,4.2000000000000002,4.2000000000000002,1.2,4.5999999999999996,1,2.3999999999999999,1.6000000000000001,0.20000000000000001,3.2000000000000002,1.3999999999999999,2.3999999999999999,0.59999999999999998,1.2,4.5999999999999996,1.3999999999999999,0.80000000000000004,0.59999999999999998,1.8,0.20000000000000001,2,3.2000000000000002,0.59999999999999998,3.3999999999999999,3.7999999999999998,3.6000000000000001,2,2.3999999999999999,1.8,1,1,1,0.40000000000000002,3.6000000000000001,1,0.80000000000000004,4.2000000000000002,3,2.7999999999999998,2.3999999999999999,2.6000000000000001,0.40000000000000002,2.3999999999999999,3.3999999999999999,3,0.40000000000000002,2.7999999999999998,2.2000000000000002,4.5999999999999996,0.40000000000000002,4.4000000000000004,1.3999999999999999,2.3999999999999999,2,2.3999999999999999,0.40000000000000002,1.3999999999999999,2.3999999999999999,2.3999999999999999,0.20000000000000001,2.3999999999999999,2.6000000000000001,3.6000000000000001,3.6000000000000001,1.6000000000000001,1.8,3,3.7999999999999998,3.2000000000000002,4.7999999999999998,1.2,3.3999999999999999,2,4.4000000000000004,2,3.7999999999999998,0.59999999999999998,4,3.6000000000000001,4.4000000000000004,4.4000000000000004,4.2000000000000002,0.40000000000000002,0.59999999999999998,5.2000000000000002,1.8,1.6000000000000001,4.7999999999999998,1,1,0.59999999999999998,2.2000000000000002,0.20000000000000001,5,5.2000000000000002,1.3999999999999999,1.8,4.7999999999999998,2.6000000000000001,5,2.7999999999999998,2.7999999999999998,2.2000000000000002,1.6000000000000001,2.7999999999999998,0.80000000000000004,3.2000000000000002,2.2000000000000002,3.2000000000000002,4.4000000000000004,5,5.2000000000000002,2.6000000000000001,2.2000000000000002,1.3999999999999999,4.2000000000000002,2.7999999999999998,3.6000000000000001,4.2000000000000002,3.2000000000000002,1.3999999999999999,0.40000000000000002,2.6000000000000001,2.6000000000000001,3,3.2000000000000002,1.2,2.6000000000000001,3.7999999999999998,2.3999999999999999,5,5.2000000000000002,1.2,2.7999999999999998,0.59999999999999998,1,1.2,4.5999999999999996,4.7999999999999998,1,0.80000000000000004,4.2000000000000002,2.3999999999999999,4,3.3999999999999999,2.7999999999999998,2.3999999999999999,3.3999999999999999,1.6000000000000001,4.7999999999999998,3.2000000000000002,1,2.2000000000000002,3.6000000000000001,3.6000000000000001,3.6000000000000001,2.6000000000000001,1.2,5,1,4.2000000000000002,3.3999999999999999,1.8,1.2,4.5999999999999996,2.3999999999999999,3.6000000000000001,2.6000000000000001,4.2000000000000002,4.2000000000000002,1.6000000000000001,2.6000000000000001,3.3999999999999999,4.4000000000000004,1.3999999999999999,1,2.6000000000000001,3.7999999999999998,0,2,1.2,3.2000000000000002,1,2.2000000000000002,2.2000000000000002,2.3999999999999999,1.2,2.2000000000000002,3.7999999999999998,2,3,3,6,2.6000000000000001,4.7999999999999998,4.7999999999999998,1.3999999999999999,4.2000000000000002,3.2000000000000002,2.7999999999999998,4.4000000000000004,5.5999999999999996,2.6000000000000001,1,1.8,3.2000000000000002,2.3999999999999999,3.2000000000000002,2.7999999999999998,3.2000000000000002,2.7999999999999998,2.3999999999999999,3.6000000000000001,1.3999999999999999,3,3.6000000000000001,3.6000000000000001,1.6000000000000001,2.2000000000000002,1.8,2.2000000000000002,2.6000000000000001,4.2000000000000002,1.2,4.7999999999999998,3.2000000000000002,4.7999999999999998,2.7999999999999998,4.5999999999999996,0.59999999999999998,2,5.4000000000000004,3,0.20000000000000001,3,2.6000000000000001,4,3.7999999999999998,3.6000000000000001,4.5999999999999996,5,1,1.2,0.59999999999999998,2,2.2000000000000002,5.2000000000000002,3.3999999999999999,3,2.7999999999999998,4,1.2,1,1.8],"mode":"markers","type":"scatter3d","marker":{"colorbar":{"title":"","ticklen":2},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(38,39,123,1)"],["0.0833333333333334","rgba(49,53,134,1)"],["0.125","rgba(59,67,145,1)"],["0.166666666666667","rgba(68,82,156,1)"],["0.208333333333333","rgba(77,96,168,1)"],["0.25","rgba(86,111,179,1)"],["0.291666666666667","rgba(94,126,191,1)"],["0.333333333333333","rgba(103,142,202,1)"],["0.375","rgba(111,157,214,1)"],["0.416666666666667","rgba(119,173,226,1)"],["0.458333333333333","rgba(127,190,238,1)"],["0.5","rgba(135,206,250,1)"],["0.541666666666667","rgba(130,201,246,1)"],["0.583333333333333","rgba(126,196,242,1)"],["0.625","rgba(121,191,239,1)"],["0.666666666666667","rgba(117,186,235,1)"],["0.708333333333333","rgba(112,181,231,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(103,172,224,1)"],["0.833333333333333","rgba(98,167,220,1)"],["0.875","rgba(94,162,216,1)"],["0.916666666666667","rgba(89,157,212,1)"],["0.958333333333333","rgba(84,153,209,1)"],["1","rgba(79,148,205,1)"]],"showscale":false,"color":[1,2,1,2,2,3,2,2,3,3,2,3,2,1,3,2,3,2,1,2,3,2,2,1,2,2,2,2,3,2,1,3,2,3,2,1,2,3,3,3,2,1,3,3,3,2,3,1,3,2,3,2,2,3,2,1,3,3,2,2,3,2,2,3,2,2,3,3,2,3,1,1,2,3,2,3,2,2,3,1,2,2,3,3,2,3,3,2,2,3,3,2,1,2,3,2,1,2,3,2,1,2,3,3,1,2,3,3,3,3,2,3,3,1,3,1,2,1,1,1,3,3,1,2,3,2,3,3,2,2,1,2,2,1,2,2,2,3,2,1,1,2,2,1,3,1,3,3,3,2,1,2,3,3,3,1,3,1,3,2,3,3,3,1,3,2,3,2,3,1,3,3,2,3,3,2,1,1,2,3,2,2,2,1,3,2,2,1,3,3,2,3,2,1,3,1,2,2,2,2,2,3,3,2,1,3,1,1,2,2,1,3,1,2,1,3,2,3,2,1,2,2,3,1,2,3,2,1,2,3,3,2,2,2,3,2,1,2,3,3,2,1,2,3,1,3,3,1,3,3,2,2,1,3,3,1,2,2,2,2,3,3,3,2,3,2,3,2,1,2,1,3,1,3,3,2,3,1,3,2,3,3,1,3,3,1,3,2,2,2,2,2,1,1,1,3,1,2,2,2],"line":{"colorbar":{"title":"","ticklen":2},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(38,39,123,1)"],["0.0833333333333334","rgba(49,53,134,1)"],["0.125","rgba(59,67,145,1)"],["0.166666666666667","rgba(68,82,156,1)"],["0.208333333333333","rgba(77,96,168,1)"],["0.25","rgba(86,111,179,1)"],["0.291666666666667","rgba(94,126,191,1)"],["0.333333333333333","rgba(103,142,202,1)"],["0.375","rgba(111,157,214,1)"],["0.416666666666667","rgba(119,173,226,1)"],["0.458333333333333","rgba(127,190,238,1)"],["0.5","rgba(135,206,250,1)"],["0.541666666666667","rgba(130,201,246,1)"],["0.583333333333333","rgba(126,196,242,1)"],["0.625","rgba(121,191,239,1)"],["0.666666666666667","rgba(117,186,235,1)"],["0.708333333333333","rgba(112,181,231,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(103,172,224,1)"],["0.833333333333333","rgba(98,167,220,1)"],["0.875","rgba(94,162,216,1)"],["0.916666666666667","rgba(89,157,212,1)"],["0.958333333333333","rgba(84,153,209,1)"],["1","rgba(79,148,205,1)"]],"showscale":false,"color":[1,2,1,2,2,3,2,2,3,3,2,3,2,1,3,2,3,2,1,2,3,2,2,1,2,2,2,2,3,2,1,3,2,3,2,1,2,3,3,3,2,1,3,3,3,2,3,1,3,2,3,2,2,3,2,1,3,3,2,2,3,2,2,3,2,2,3,3,2,3,1,1,2,3,2,3,2,2,3,1,2,2,3,3,2,3,3,2,2,3,3,2,1,2,3,2,1,2,3,2,1,2,3,3,1,2,3,3,3,3,2,3,3,1,3,1,2,1,1,1,3,3,1,2,3,2,3,3,2,2,1,2,2,1,2,2,2,3,2,1,1,2,2,1,3,1,3,3,3,2,1,2,3,3,3,1,3,1,3,2,3,3,3,1,3,2,3,2,3,1,3,3,2,3,3,2,1,1,2,3,2,2,2,1,3,2,2,1,3,3,2,3,2,1,3,1,2,2,2,2,2,3,3,2,1,3,1,1,2,2,1,3,1,2,1,3,2,3,2,1,2,2,3,1,2,3,2,1,2,3,3,2,2,2,3,2,1,2,3,3,2,1,2,3,1,3,3,1,3,3,2,2,1,3,3,1,2,2,2,2,3,3,3,2,3,2,3,2,1,2,1,3,1,3,3,2,3,1,3,2,3,3,1,3,3,1,3,2,2,2,2,2,1,1,1,3,1,2,2,2]}},"frame":null},{"x":[0,5],"y":[0,5.666666666666667],"type":"scatter3d","mode":"markers","opacity":0,"hoverinfo":"none","showlegend":false,"marker":{"colorbar":{"title":"","ticklen":2,"len":0.5,"lenmode":"fraction","y":1,"yanchor":"top"},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(38,39,123,1)"],["0.0833333333333334","rgba(49,53,134,1)"],["0.125","rgba(59,67,145,1)"],["0.166666666666667","rgba(68,82,156,1)"],["0.208333333333333","rgba(77,96,168,1)"],["0.25","rgba(86,111,179,1)"],["0.291666666666667","rgba(94,126,191,1)"],["0.333333333333333","rgba(103,142,202,1)"],["0.375","rgba(111,157,214,1)"],["0.416666666666667","rgba(119,173,226,1)"],["0.458333333333333","rgba(127,190,238,1)"],["0.5","rgba(135,206,250,1)"],["0.541666666666667","rgba(130,201,246,1)"],["0.583333333333333","rgba(126,196,242,1)"],["0.625","rgba(121,191,239,1)"],["0.666666666666667","rgba(117,186,235,1)"],["0.708333333333333","rgba(112,181,231,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(103,172,224,1)"],["0.833333333333333","rgba(98,167,220,1)"],["0.875","rgba(94,162,216,1)"],["0.916666666666667","rgba(89,157,212,1)"],["0.958333333333333","rgba(84,153,209,1)"],["1","rgba(79,148,205,1)"]],"showscale":true,"color":[1,3],"line":{"color":"rgba(255,127,14,1)"}},"z":[0,6],"frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+<section id="lpa-for-timepoint-1" class="level2">
+<h2 class="anchored" data-anchor-id="lpa-for-timepoint-1">LPA for timepoint 1:</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>mbi_lpa1 <span class="ot">=</span> mbi_scales1 <span class="sc">|&gt;</span> </span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(exhaustion, inefficacy, cynicism)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>lpa1 <span class="ot">=</span> mbi_lpa1 <span class="sc">|&gt;</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">estimate_profiles</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">9</span>,                        </span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>                    <span class="at">variances =</span> <span class="st">"equal"</span>,</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>                    <span class="at">covariances =</span> <span class="st">"zero"</span>) </span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="co">#class enumeration with model fit indices</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="fu">get_fit</span>(lpa1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 9 × 18
+  Model Classes LogLik   AIC   AWE   BIC  CAIC   CLC   KIC SABIC    ICL Entropy
+  &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+1     1       1 -1435. 2882. 2955. 2905. 2911. 2872. 2891. 2886. -2905.   1    
+2     1       2 -1329. 2679. 2802. 2716. 2726. 2661. 2692. 2684. -2771.   0.751
+3     1       3 -1286. 2600. 2772. 2652. 2666. 2574. 2617. 2608. -2698.   0.843
+4     1       4 -1275. 2585. 2807. 2652. 2670. 2551. 2606. 2595. -2725.   0.809
+5     1       5 -1271. 2587. 2858. 2668. 2690. 2544. 2612. 2598. -2816.   0.702
+6     1       6 -1267. 2586. 2907. 2682. 2708. 2536. 2615. 2600. -2810.   0.751
+7     1       7 -1256. 2573. 2943. 2684. 2714. 2514. 2606. 2589. -2801.   0.786
+8     1       8 -1247. 2562. 2982. 2688. 2722. 2495. 2599. 2580. -2815.   0.784
+9     1       9 -1240. 2557. 3027. 2697. 2735. 2482. 2598. 2577. -2861.   0.755
+# ℹ 6 more variables: prob_min &lt;dbl&gt;, prob_max &lt;dbl&gt;, n_min &lt;dbl&gt;, n_max &lt;dbl&gt;,
+#   BLRT_val &lt;dbl&gt;, BLRT_p &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<p>Considering multiple fit indices, the <strong>3-class solution</strong> seems to be superior:</p>
+<ol type="1">
+<li><p>lower BIC than previous and subsequent class solutions</p></li>
+<li><p>higher entropy than 4 class solution</p></li>
+<li><p>higher smallest &amp; largest average posterior classification probability than other class solutions</p></li>
+<li><p>robust smallest class size of 15.3%</p></li>
+</ol>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>lpa_3 <span class="ot">=</span> lpa1[[<span class="dv">3</span>]]</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>mbi_profiles13 <span class="ot">=</span> lpa_3 <span class="sc">|&gt;</span> </span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">get_data</span>()</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co"># class models containing &lt; 5% of the sample are rejected</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>c1 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles13, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">1</span>))) <span class="co">#46 (~15%)</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>c2 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles13, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">2</span>))) <span class="co">#111 (~37%)</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>c3 <span class="ot">=</span> <span class="fu">with</span>(mbi_profiles13, <span class="fu">length</span>(<span class="fu">which</span>(Class <span class="sc">==</span> <span class="dv">3</span>))) <span class="co">#143 (~48%)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Class 1 now contains 46 participants, class 2 contains 111 and class 3 143 participants. Now we will generate line plots that depict each classes’ mean exhaustion, cynicism, and inefficacy scores:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>line_plots13 <span class="ot">=</span> mbi_profiles13 <span class="sc">|&gt;</span> </span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">cols =</span> <span class="fu">c</span>(exhaustion, inefficacy, cynicism),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to =</span> <span class="st">"dimension"</span>,</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">"score"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Class, dimension) <span class="sc">|&gt;</span> </span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_score =</span> <span class="fu">mean</span>(score),</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co">#specify colors (reverse order so color coding is consistent with T0)</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>profile_colors13 <span class="ot">=</span> <span class="fu">c</span>(</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"1"</span> <span class="ot">=</span> <span class="st">"midnightblue"</span>,</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2"</span> <span class="ot">=</span> <span class="st">"steelblue3"</span>,</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">"3"</span> <span class="ot">=</span> <span class="st">"lightskyblue"</span>)</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>line_plots13 <span class="ot">=</span> line_plots13 <span class="sc">|&gt;</span> </span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Class =</span> <span class="fu">factor</span>(Class)) <span class="sc">|&gt;</span> </span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">dimension =</span> <span class="fu">factor</span>(dimension,<span class="at">levels =</span> </span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>                              <span class="fu">c</span>(<span class="st">"exhaustion"</span>, <span class="st">"cynicism"</span>, <span class="st">"inefficacy"</span>)))</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>fig3 <span class="ot">=</span> <span class="fu">ggplot</span>(line_plots13, <span class="fu">aes</span>(<span class="at">x =</span> dimension, <span class="at">y =</span> mean_score,</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>                              <span class="at">group =</span> Class, <span class="at">color =</span> Class)) <span class="sc">+</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> profile_colors13, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="st">"1"</span>, <span class="st">"2"</span>, <span class="st">"3"</span>),</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>                     <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Disengaged/Burnout"</span>,<span class="st">"Overextended"</span>,<span class="st">"Engagement"</span>)) <span class="sc">+</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> <span class="fu">c</span>(</span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">exhaustion =</span> <span class="st">"Exhaustion"</span>,</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">inefficacy   =</span> <span class="st">"Inefficacy"</span>,</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">cynicism   =</span> <span class="st">"Cynicism"</span>)) <span class="sc">+</span></span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">y =</span> <span class="st">"Mean Score"</span>, <span class="at">x =</span> <span class="st">""</span>, <span class="at">color =</span> <span class="st">"Profile"</span>) <span class="sc">+</span></span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">6</span>)) <span class="sc">+</span></span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fig3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="20260227_lpa_SH_files/figure-html/line%20plots%202-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">#ggsave("T1_lpa_3.png", fig3, width = 8, height = 6, bg = "white")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>add 3d scatterplots for consistency:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plotly)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">=</span> <span class="fu">plot_ly</span>(<span class="at">x=</span>mbi_profiles13<span class="sc">$</span>inefficacy, <span class="at">y=</span>mbi_profiles13<span class="sc">$</span>cynicism, <span class="at">z=</span>mbi_profiles13<span class="sc">$</span>exhaustion, </span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>               <span class="at">type=</span><span class="st">"scatter3d"</span>, <span class="at">mode=</span><span class="st">"markers"</span>, <span class="at">color=</span>mbi_profiles13<span class="sc">$</span>Class, <span class="at">colors =</span> profile_colors13)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">=</span> plot <span class="sc">|&gt;</span> </span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">layout</span>(<span class="at">title =</span> <span class="st">"Burnout profiles"</span>,</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">scene =</span> <span class="fu">list</span>(</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>           <span class="at">xaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Inefficacy"</span>),</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>           <span class="at">yaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Cynicism"</span>),</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>           <span class="at">zaxis =</span> <span class="fu">list</span>(<span class="at">title =</span> <span class="st">"Exhaustion"</span>)))</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>plot</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div class="plotly html-widget html-fill-item" id="htmlwidget-ab367ef6f8407bb133d0" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-ab367ef6f8407bb133d0">{"x":{"visdat":{"41c81f783f8d":["function () ","plotlyVisDat"]},"cur_data":"41c81f783f8d","attrs":{"41c81f783f8d":{"x":[2,0,2,0.80000000000000004,0.80000000000000004,1.2,0,0.59999999999999998,1.3999999999999999,2.6000000000000001,0,1.8,1.2,3,1.8,1,0.80000000000000004,2,2.7999999999999998,0.80000000000000004,1.6000000000000001,1.2,1.3999999999999999,1.2,1,1,2,1.6000000000000001,0.59999999999999998,0,2.7999999999999998,1.3999999999999999,0,1.3999999999999999,2.3999999999999999,3.3999999999999999,1.2,2,0.40000000000000002,2.2000000000000002,2.2000000000000002,3.3999999999999999,1.8,2.2000000000000002,1.6000000000000001,1.2,2.3999999999999999,2.6000000000000001,2.6000000000000001,0.59999999999999998,1.3999999999999999,0.80000000000000004,0.40000000000000002,2,1.8,1.6000000000000001,1.6000000000000001,1.6000000000000001,1.3999999999999999,1.2,2.2000000000000002,1.2,0.80000000000000004,0.59999999999999998,1.2,0.59999999999999998,1.6000000000000001,0,1.6000000000000001,1.2,1.2,2.6000000000000001,0.80000000000000004,1.2,1.8,1,1.2,1,0.40000000000000002,1.2,0.80000000000000004,1,2.3999999999999999,1,0.59999999999999998,1.6000000000000001,0.80000000000000004,0.80000000000000004,0,0.80000000000000004,2.6000000000000001,2,4.4000000000000004,2.3999999999999999,0.40000000000000002,0.80000000000000004,0.20000000000000001,0.59999999999999998,0.80000000000000004,2.2000000000000002,1.8,1.2,0.80000000000000004,1.3999999999999999,1.6000000000000001,2.3999999999999999,2.2000000000000002,2.2000000000000002,2.2000000000000002,0.80000000000000004,2.3999999999999999,1.6000000000000001,0.59999999999999998,2.6000000000000001,1.3999999999999999,2.2000000000000002,1,2.7999999999999998,0.80000000000000004,3,2.3999999999999999,0,1.8,1.2,2.6000000000000001,0.59999999999999998,1.6000000000000001,0.80000000000000004,1,0.80000000000000004,3.2000000000000002,0.59999999999999998,0.59999999999999998,1.8,0.20000000000000001,0.80000000000000004,0.20000000000000001,4.4000000000000004,0.20000000000000001,0.59999999999999998,1.2,1,1.2,3.3999999999999999,0.59999999999999998,2.3999999999999999,2.3999999999999999,1.6000000000000001,3.7999999999999998,0,2.2000000000000002,0.80000000000000004,2.7999999999999998,2.2000000000000002,2.3999999999999999,0.80000000000000004,1.8,1.6000000000000001,3,0.40000000000000002,2.6000000000000001,1.3999999999999999,0.80000000000000004,1.2,0.80000000000000004,1.6000000000000001,1.6000000000000001,0.80000000000000004,2.6000000000000001,2.6000000000000001,1.6000000000000001,2.3999999999999999,0.59999999999999998,2.2000000000000002,1,2.2000000000000002,1,2.3999999999999999,1.8,2.6000000000000001,0.20000000000000001,0,0.20000000000000001,2.6000000000000001,2.6000000000000001,1.2,0.40000000000000002,3.6000000000000001,0.40000000000000002,3,1,0.20000000000000001,1,0.80000000000000004,0.40000000000000002,3.3999999999999999,1.2,1.6000000000000001,1,1.2,1,0.59999999999999998,3.3999999999999999,1,3.2000000000000002,2.3999999999999999,1,0.80000000000000004,2.3999999999999999,1,2.6000000000000001,1.3999999999999999,1.6000000000000001,0.80000000000000004,1.6000000000000001,0.20000000000000001,0.59999999999999998,2.3999999999999999,0.20000000000000001,2.7999999999999998,1,0.80000000000000004,2.3999999999999999,2.2000000000000002,0.20000000000000001,0.59999999999999998,1.8,3,0.20000000000000001,2.2000000000000002,1.2,0.40000000000000002,1.3999999999999999,0.80000000000000004,1.3999999999999999,1.6000000000000001,2.3999999999999999,0.59999999999999998,0.80000000000000004,2.6000000000000001,1.3999999999999999,0.59999999999999998,0.80000000000000004,1,2.6000000000000001,1,2.6000000000000001,3,1.6000000000000001,0.40000000000000002,1.2,1.8,2,0.80000000000000004,0.40000000000000002,1,0.80000000000000004,1,1,0.20000000000000001,0.40000000000000002,1.2,1,0.20000000000000001,1,0,1,1,3.7999999999999998,0.80000000000000004,1.2,1,1.6000000000000001,0.59999999999999998,0.20000000000000001,0.80000000000000004,2.6000000000000001,3.7999999999999998,2.3999999999999999,0,3,0.40000000000000002,1.8,1.2,1.2,0.80000000000000004,1.2,0.20000000000000001,0.40000000000000002,0.20000000000000001,1,2.7999999999999998,3.3999999999999999,4.2000000000000002,2.2000000000000002,1.3999999999999999,1.3999999999999999,0.20000000000000001,0.20000000000000001,1.8],"y":[4,0,3.8333333333333335,0.96666666666666667,2.6333333333333333,2.3666666666666667,0,0.26666666666666666,2.2333333333333334,2.9333333333333336,0.16666666666666666,3.2999999999999998,1.3666666666666667,4.333333333333333,2.6333333333333333,1,2.7999999999999998,1.5,5.1333333333333329,1.1333333333333333,2.6000000000000001,0.36666666666666664,0.39999999999999997,3.2000000000000002,0.66666666666666663,0.66666666666666663,2.3333333333333335,1.7666666666666666,0.93333333333333335,0.16666666666666666,3.1333333333333333,2.8999999999999999,0,2.2333333333333334,1.0666666666666667,4.0666666666666664,0.8666666666666667,1.5,2.3999999999999999,1.0333333333333334,2.2000000000000002,3.8999999999999999,3.2999999999999998,1.7,4.2666666666666666,1.2,3.2333333333333334,3.6000000000000001,1.6000000000000001,1.1000000000000001,2.7333333333333334,0.6333333333333333,0.56666666666666665,3.1666666666666665,1.8,3.9333333333333336,1.4333333333333333,1.9333333333333333,1.2333333333333334,1.7,2.7000000000000002,0.8666666666666667,0.46666666666666667,2.4333333333333331,1.0333333333333332,1.2666666666666666,3.2666666666666666,2.5,1.2666666666666666,1.0333333333333332,2.8666666666666667,3.9333333333333336,0.80000000000000004,2.5333333333333332,0.96666666666666667,1.5,0.36666666666666664,1,2.0666666666666669,3.0333333333333332,0.46666666666666667,0.33333333333333331,1.7333333333333334,2.1666666666666665,0.93333333333333335,1.2666666666666666,0.29999999999999999,0.29999999999999999,0.33333333333333331,1.6333333333333333,1.6000000000000001,2.1666666666666665,3.8999999999999999,1.3999999999999999,0.066666666666666666,0.46666666666666667,0.033333333333333333,0.76666666666666661,0.80000000000000004,1.5333333333333334,3.9666666666666668,0.19999999999999998,1.4666666666666668,3.2333333333333334,2.7666666666666666,1.0666666666666667,1.0333333333333334,1.5333333333333334,1.8666666666666667,0.46666666666666667,2.8999999999999999,2.2666666666666666,2.7666666666666666,3.4333333333333336,3.0666666666666664,3.7000000000000002,1.3333333333333333,4.2999999999999998,2.2999999999999998,4,1.7333333333333334,1.3333333333333333,3.7999999999999998,0.53333333333333333,2.2666666666666666,0.59999999999999998,1.7666666666666666,1.8,0.83333333333333337,0.6333333333333333,3.5333333333333332,2.2666666666666666,0.59999999999999998,3.2999999999999998,0.20000000000000001,0.6333333333333333,0.033333333333333333,2.7333333333333334,0.20000000000000001,2.9333333333333331,3.2000000000000002,4.166666666666667,0.8666666666666667,0.90000000000000002,1.6000000000000001,3.3999999999999999,2.2333333333333334,2.4333333333333336,1.1333333333333333,0,2.3666666666666667,1.1333333333333333,2.7999999999999998,1.0333333333333334,0.90000000000000002,2.1333333333333333,1.6333333333333333,4.5999999999999996,0.83333333333333337,1.7333333333333334,2.4333333333333336,1.5666666666666667,1.1333333333333333,2.7000000000000002,1.1333333333333333,0.93333333333333335,1.9333333333333333,1.1333333333333333,2.4333333333333336,4.0999999999999996,1.2666666666666666,2.0666666666666664,0.76666666666666661,4.2000000000000002,2.5,1.2,2,5.2333333333333334,1.3,1.7666666666666666,0.53333333333333333,0.5,0.53333333333333333,4.7666666666666666,1.4333333333333333,3.7000000000000002,0.066666666666666666,2.1000000000000001,2.8999999999999999,1.1666666666666667,1.1666666666666667,0.69999999999999996,0.5,2.9666666666666668,3.5666666666666669,3.3999999999999999,1.0333333333333332,0.26666666666666666,1,2.3666666666666667,1.1666666666666667,2.6000000000000001,1.0666666666666667,2.1666666666666665,3.5333333333333332,1.0666666666666667,2.3333333333333335,1.4666666666666668,0.56666666666666665,0.83333333333333337,2.9333333333333336,2.2333333333333334,5.0999999999999996,1.3,3.7666666666666666,1.5333333333333334,1.1000000000000001,2.3999999999999999,2.0333333333333332,0.96666666666666667,0.83333333333333337,0.46666666666666667,2.2333333333333334,4.8666666666666671,0.53333333333333333,0.93333333333333335,0.6333333333333333,2.3333333333333335,0.53333333333333333,1.3666666666666667,1.3666666666666667,0.90000000000000002,0.56666666666666665,2.9666666666666668,2.5666666666666664,1.1000000000000001,4.4000000000000004,0.43333333333333335,0.13333333333333333,2.7666666666666666,0.39999999999999997,2.1000000000000001,0.6333333333333333,1.3333333333333333,4.2666666666666666,2.3333333333333335,2.4333333333333336,1.6666666666666667,1.9333333333333333,0.90000000000000002,0.8666666666666667,0.6333333333333333,2.8333333333333335,1.9666666666666668,1.0666666666666667,4.333333333333333,1.3,2.1666666666666665,1,0.20000000000000001,1.5666666666666667,1.8666666666666667,4,0.20000000000000001,1.8333333333333333,0,1,0.5,2.7999999999999998,0.96666666666666667,4.7000000000000002,1.5,4.4333333333333336,0.76666666666666661,1.8666666666666667,0.46666666666666667,1.6000000000000001,4.7999999999999998,2.5666666666666664,0,1.8333333333333333,1.3999999999999999,2.1333333333333333,1.2,0.19999999999999998,3.6333333333333333,4.2000000000000002,1.0333333333333334,0.066666666666666666,0.20000000000000001,0.66666666666666663,0.6333333333333333,4.4000000000000004,3.2000000000000002,4.7000000000000002,2.5666666666666664,2.7333333333333334,0.69999999999999996,0.20000000000000001,0.80000000000000004],"z":[5.2000000000000002,3.6000000000000001,3.2000000000000002,1,2.7999999999999998,4.2000000000000002,0.40000000000000002,1.3999999999999999,4.4000000000000004,0.59999999999999998,0.20000000000000001,4,0.59999999999999998,2,3.2000000000000002,0.40000000000000002,2.2000000000000002,0.40000000000000002,4.4000000000000004,1,2.6000000000000001,0.40000000000000002,0.59999999999999998,3,0.20000000000000001,0.59999999999999998,4.2000000000000002,4.2000000000000002,1.6000000000000001,0,3.7999999999999998,3.3999999999999999,0,2.6000000000000001,0.80000000000000004,3.7999999999999998,1.3999999999999999,1.8,4.2000000000000002,2,3,3.2000000000000002,3.2000000000000002,2.7999999999999998,3.6000000000000001,2.2000000000000002,4,4.4000000000000004,2.3999999999999999,3,3.3999999999999999,1.8,1,2.6000000000000001,1.2,4,2,2.3999999999999999,0.40000000000000002,2,5.2000000000000002,1.3999999999999999,1,1,0.80000000000000004,0,2.7999999999999998,4.2000000000000002,1.3999999999999999,2,3,3.6000000000000001,3.3999999999999999,2,1.6000000000000001,1,0.80000000000000004,0.59999999999999998,0.20000000000000001,4.5999999999999996,0.80000000000000004,0,4.2000000000000002,2.7999999999999998,2.7999999999999998,2,2.2000000000000002,0.20000000000000001,2,2.3999999999999999,3.3999999999999999,1.6000000000000001,3.6000000000000001,2.7999999999999998,1,0.40000000000000002,3.3999999999999999,0.80000000000000004,2.3999999999999999,2.6000000000000001,2.6000000000000001,0.80000000000000004,0.59999999999999998,2,1.3999999999999999,0.40000000000000002,4.2000000000000002,1.2,3.2000000000000002,1.8,2,2,4.4000000000000004,3.7999999999999998,4.4000000000000004,5,1.2,4.4000000000000004,1,4.7999999999999998,1.8,2.7999999999999998,2.3999999999999999,3,4,2.6000000000000001,4.5999999999999996,3.7999999999999998,0.59999999999999998,0.40000000000000002,5.2000000000000002,2.2000000000000002,1.3999999999999999,4.7999999999999998,1.2,1.3999999999999999,0.20000000000000001,2.3999999999999999,0.20000000000000001,4.2000000000000002,4.2000000000000002,2.6000000000000001,2.2000000000000002,1.2,3.3999999999999999,4.2000000000000002,3,3.6000000000000001,1.8,1.3999999999999999,2.2000000000000002,0.59999999999999998,2.6000000000000001,1.6000000000000001,3.2000000000000002,3.7999999999999998,4.4000000000000004,4.2000000000000002,1.8,3.6000000000000001,1.8,4.4000000000000004,2.3999999999999999,5.2000000000000002,0.80000000000000004,3,1.6000000000000001,2.2000000000000002,2.2000000000000002,4.4000000000000004,3.7999999999999998,3.3999999999999999,1.2,4.7999999999999998,4,1.3999999999999999,4,5.5999999999999996,1.2,2.2000000000000002,0,2,1.8,3.6000000000000001,4.7999999999999998,0.80000000000000004,0.40000000000000002,2.6000000000000001,2.7999999999999998,4.4000000000000004,1.6000000000000001,1.2,3,2,1.3999999999999999,3.3999999999999999,2.6000000000000001,1,2.3999999999999999,3.7999999999999998,3.2000000000000002,3,5.5999999999999996,3.6000000000000001,4.4000000000000004,1.3999999999999999,3.7999999999999998,2,1.6000000000000001,3,4.2000000000000002,2.3999999999999999,4.2000000000000002,1.8,4.4000000000000004,4.7999999999999998,1.8,1.8,4,5,1.8,1.2,1.8,4.2000000000000002,0.20000000000000001,1.6000000000000001,0.59999999999999998,1.8,0.80000000000000004,1.3999999999999999,2.2000000000000002,1.6000000000000001,2,3.3999999999999999,3.3999999999999999,1.2,3.6000000000000001,3,5.5999999999999996,2.6000000000000001,2.7999999999999998,5,1,3.2000000000000002,3.3999999999999999,2.7999999999999998,3.7999999999999998,4.2000000000000002,2.6000000000000001,1.3999999999999999,1.6000000000000001,2.7999999999999998,1.6000000000000001,2.3999999999999999,3.2000000000000002,3.7999999999999998,1.8,4.4000000000000004,1.6000000000000001,1.3999999999999999,2,3.3999999999999999,5.4000000000000004,1,3.3999999999999999,0.59999999999999998,3.3999999999999999,1.2,3.6000000000000001,1.2,5.7999999999999998,3,5.2000000000000002,3,3.7999999999999998,0.80000000000000004,3.2000000000000002,5,4,0.40000000000000002,2.3999999999999999,2.6000000000000001,3.2000000000000002,2.3999999999999999,1.6000000000000001,5.2000000000000002,5.2000000000000002,0.80000000000000004,0.80000000000000004,0.59999999999999998,1.3999999999999999,1.6000000000000001,4.2000000000000002,2.7999999999999998,3.3999999999999999,2.3999999999999999,5,1,0.80000000000000004,2.2000000000000002],"mode":"markers","color":[1,3,1,3,2,2,3,3,2,2,3,1,3,1,2,3,2,3,1,3,2,3,3,2,3,3,2,2,3,3,1,2,3,2,3,1,3,3,2,3,2,1,2,2,1,3,1,1,2,3,2,3,3,2,3,1,3,2,3,2,2,3,3,2,3,3,2,2,3,3,2,1,3,2,3,3,3,3,3,2,3,3,2,2,3,3,3,3,3,3,2,2,1,2,3,3,3,3,3,2,1,3,3,2,2,3,2,3,2,3,2,2,2,1,2,1,3,1,2,1,2,3,1,3,2,3,2,2,3,3,1,2,3,1,3,3,3,2,3,2,2,1,3,3,2,1,2,2,3,3,2,3,2,3,3,2,2,1,3,2,2,2,3,2,3,3,2,3,2,1,2,2,3,1,2,3,2,1,3,2,3,3,3,1,2,2,3,2,2,2,3,3,3,2,2,1,3,3,3,2,3,2,2,2,1,3,2,3,3,3,2,2,1,3,1,2,3,2,2,2,3,3,2,1,3,3,3,2,3,3,3,3,3,2,2,3,1,3,3,2,3,2,3,3,1,2,2,2,2,3,3,3,2,2,3,1,3,2,3,3,3,2,1,3,2,3,3,3,2,3,1,2,1,3,2,3,2,1,2,3,2,3,2,3,3,1,1,3,3,3,3,3,1,1,1,2,2,3,3,3],"colors":["midnightblue","steelblue3","lightskyblue"],"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter3d"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"title":"Burnout profiles","scene":{"xaxis":{"title":"Inefficacy"},"yaxis":{"title":"Cynicism"},"zaxis":{"title":"Exhaustion"}},"hovermode":"closest","showlegend":false,"legend":{"yanchor":"top","y":0.5}},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"x":[2,0,2,0.80000000000000004,0.80000000000000004,1.2,0,0.59999999999999998,1.3999999999999999,2.6000000000000001,0,1.8,1.2,3,1.8,1,0.80000000000000004,2,2.7999999999999998,0.80000000000000004,1.6000000000000001,1.2,1.3999999999999999,1.2,1,1,2,1.6000000000000001,0.59999999999999998,0,2.7999999999999998,1.3999999999999999,0,1.3999999999999999,2.3999999999999999,3.3999999999999999,1.2,2,0.40000000000000002,2.2000000000000002,2.2000000000000002,3.3999999999999999,1.8,2.2000000000000002,1.6000000000000001,1.2,2.3999999999999999,2.6000000000000001,2.6000000000000001,0.59999999999999998,1.3999999999999999,0.80000000000000004,0.40000000000000002,2,1.8,1.6000000000000001,1.6000000000000001,1.6000000000000001,1.3999999999999999,1.2,2.2000000000000002,1.2,0.80000000000000004,0.59999999999999998,1.2,0.59999999999999998,1.6000000000000001,0,1.6000000000000001,1.2,1.2,2.6000000000000001,0.80000000000000004,1.2,1.8,1,1.2,1,0.40000000000000002,1.2,0.80000000000000004,1,2.3999999999999999,1,0.59999999999999998,1.6000000000000001,0.80000000000000004,0.80000000000000004,0,0.80000000000000004,2.6000000000000001,2,4.4000000000000004,2.3999999999999999,0.40000000000000002,0.80000000000000004,0.20000000000000001,0.59999999999999998,0.80000000000000004,2.2000000000000002,1.8,1.2,0.80000000000000004,1.3999999999999999,1.6000000000000001,2.3999999999999999,2.2000000000000002,2.2000000000000002,2.2000000000000002,0.80000000000000004,2.3999999999999999,1.6000000000000001,0.59999999999999998,2.6000000000000001,1.3999999999999999,2.2000000000000002,1,2.7999999999999998,0.80000000000000004,3,2.3999999999999999,0,1.8,1.2,2.6000000000000001,0.59999999999999998,1.6000000000000001,0.80000000000000004,1,0.80000000000000004,3.2000000000000002,0.59999999999999998,0.59999999999999998,1.8,0.20000000000000001,0.80000000000000004,0.20000000000000001,4.4000000000000004,0.20000000000000001,0.59999999999999998,1.2,1,1.2,3.3999999999999999,0.59999999999999998,2.3999999999999999,2.3999999999999999,1.6000000000000001,3.7999999999999998,0,2.2000000000000002,0.80000000000000004,2.7999999999999998,2.2000000000000002,2.3999999999999999,0.80000000000000004,1.8,1.6000000000000001,3,0.40000000000000002,2.6000000000000001,1.3999999999999999,0.80000000000000004,1.2,0.80000000000000004,1.6000000000000001,1.6000000000000001,0.80000000000000004,2.6000000000000001,2.6000000000000001,1.6000000000000001,2.3999999999999999,0.59999999999999998,2.2000000000000002,1,2.2000000000000002,1,2.3999999999999999,1.8,2.6000000000000001,0.20000000000000001,0,0.20000000000000001,2.6000000000000001,2.6000000000000001,1.2,0.40000000000000002,3.6000000000000001,0.40000000000000002,3,1,0.20000000000000001,1,0.80000000000000004,0.40000000000000002,3.3999999999999999,1.2,1.6000000000000001,1,1.2,1,0.59999999999999998,3.3999999999999999,1,3.2000000000000002,2.3999999999999999,1,0.80000000000000004,2.3999999999999999,1,2.6000000000000001,1.3999999999999999,1.6000000000000001,0.80000000000000004,1.6000000000000001,0.20000000000000001,0.59999999999999998,2.3999999999999999,0.20000000000000001,2.7999999999999998,1,0.80000000000000004,2.3999999999999999,2.2000000000000002,0.20000000000000001,0.59999999999999998,1.8,3,0.20000000000000001,2.2000000000000002,1.2,0.40000000000000002,1.3999999999999999,0.80000000000000004,1.3999999999999999,1.6000000000000001,2.3999999999999999,0.59999999999999998,0.80000000000000004,2.6000000000000001,1.3999999999999999,0.59999999999999998,0.80000000000000004,1,2.6000000000000001,1,2.6000000000000001,3,1.6000000000000001,0.40000000000000002,1.2,1.8,2,0.80000000000000004,0.40000000000000002,1,0.80000000000000004,1,1,0.20000000000000001,0.40000000000000002,1.2,1,0.20000000000000001,1,0,1,1,3.7999999999999998,0.80000000000000004,1.2,1,1.6000000000000001,0.59999999999999998,0.20000000000000001,0.80000000000000004,2.6000000000000001,3.7999999999999998,2.3999999999999999,0,3,0.40000000000000002,1.8,1.2,1.2,0.80000000000000004,1.2,0.20000000000000001,0.40000000000000002,0.20000000000000001,1,2.7999999999999998,3.3999999999999999,4.2000000000000002,2.2000000000000002,1.3999999999999999,1.3999999999999999,0.20000000000000001,0.20000000000000001,1.8],"y":[4,0,3.8333333333333335,0.96666666666666667,2.6333333333333333,2.3666666666666667,0,0.26666666666666666,2.2333333333333334,2.9333333333333336,0.16666666666666666,3.2999999999999998,1.3666666666666667,4.333333333333333,2.6333333333333333,1,2.7999999999999998,1.5,5.1333333333333329,1.1333333333333333,2.6000000000000001,0.36666666666666664,0.39999999999999997,3.2000000000000002,0.66666666666666663,0.66666666666666663,2.3333333333333335,1.7666666666666666,0.93333333333333335,0.16666666666666666,3.1333333333333333,2.8999999999999999,0,2.2333333333333334,1.0666666666666667,4.0666666666666664,0.8666666666666667,1.5,2.3999999999999999,1.0333333333333334,2.2000000000000002,3.8999999999999999,3.2999999999999998,1.7,4.2666666666666666,1.2,3.2333333333333334,3.6000000000000001,1.6000000000000001,1.1000000000000001,2.7333333333333334,0.6333333333333333,0.56666666666666665,3.1666666666666665,1.8,3.9333333333333336,1.4333333333333333,1.9333333333333333,1.2333333333333334,1.7,2.7000000000000002,0.8666666666666667,0.46666666666666667,2.4333333333333331,1.0333333333333332,1.2666666666666666,3.2666666666666666,2.5,1.2666666666666666,1.0333333333333332,2.8666666666666667,3.9333333333333336,0.80000000000000004,2.5333333333333332,0.96666666666666667,1.5,0.36666666666666664,1,2.0666666666666669,3.0333333333333332,0.46666666666666667,0.33333333333333331,1.7333333333333334,2.1666666666666665,0.93333333333333335,1.2666666666666666,0.29999999999999999,0.29999999999999999,0.33333333333333331,1.6333333333333333,1.6000000000000001,2.1666666666666665,3.8999999999999999,1.3999999999999999,0.066666666666666666,0.46666666666666667,0.033333333333333333,0.76666666666666661,0.80000000000000004,1.5333333333333334,3.9666666666666668,0.19999999999999998,1.4666666666666668,3.2333333333333334,2.7666666666666666,1.0666666666666667,1.0333333333333334,1.5333333333333334,1.8666666666666667,0.46666666666666667,2.8999999999999999,2.2666666666666666,2.7666666666666666,3.4333333333333336,3.0666666666666664,3.7000000000000002,1.3333333333333333,4.2999999999999998,2.2999999999999998,4,1.7333333333333334,1.3333333333333333,3.7999999999999998,0.53333333333333333,2.2666666666666666,0.59999999999999998,1.7666666666666666,1.8,0.83333333333333337,0.6333333333333333,3.5333333333333332,2.2666666666666666,0.59999999999999998,3.2999999999999998,0.20000000000000001,0.6333333333333333,0.033333333333333333,2.7333333333333334,0.20000000000000001,2.9333333333333331,3.2000000000000002,4.166666666666667,0.8666666666666667,0.90000000000000002,1.6000000000000001,3.3999999999999999,2.2333333333333334,2.4333333333333336,1.1333333333333333,0,2.3666666666666667,1.1333333333333333,2.7999999999999998,1.0333333333333334,0.90000000000000002,2.1333333333333333,1.6333333333333333,4.5999999999999996,0.83333333333333337,1.7333333333333334,2.4333333333333336,1.5666666666666667,1.1333333333333333,2.7000000000000002,1.1333333333333333,0.93333333333333335,1.9333333333333333,1.1333333333333333,2.4333333333333336,4.0999999999999996,1.2666666666666666,2.0666666666666664,0.76666666666666661,4.2000000000000002,2.5,1.2,2,5.2333333333333334,1.3,1.7666666666666666,0.53333333333333333,0.5,0.53333333333333333,4.7666666666666666,1.4333333333333333,3.7000000000000002,0.066666666666666666,2.1000000000000001,2.8999999999999999,1.1666666666666667,1.1666666666666667,0.69999999999999996,0.5,2.9666666666666668,3.5666666666666669,3.3999999999999999,1.0333333333333332,0.26666666666666666,1,2.3666666666666667,1.1666666666666667,2.6000000000000001,1.0666666666666667,2.1666666666666665,3.5333333333333332,1.0666666666666667,2.3333333333333335,1.4666666666666668,0.56666666666666665,0.83333333333333337,2.9333333333333336,2.2333333333333334,5.0999999999999996,1.3,3.7666666666666666,1.5333333333333334,1.1000000000000001,2.3999999999999999,2.0333333333333332,0.96666666666666667,0.83333333333333337,0.46666666666666667,2.2333333333333334,4.8666666666666671,0.53333333333333333,0.93333333333333335,0.6333333333333333,2.3333333333333335,0.53333333333333333,1.3666666666666667,1.3666666666666667,0.90000000000000002,0.56666666666666665,2.9666666666666668,2.5666666666666664,1.1000000000000001,4.4000000000000004,0.43333333333333335,0.13333333333333333,2.7666666666666666,0.39999999999999997,2.1000000000000001,0.6333333333333333,1.3333333333333333,4.2666666666666666,2.3333333333333335,2.4333333333333336,1.6666666666666667,1.9333333333333333,0.90000000000000002,0.8666666666666667,0.6333333333333333,2.8333333333333335,1.9666666666666668,1.0666666666666667,4.333333333333333,1.3,2.1666666666666665,1,0.20000000000000001,1.5666666666666667,1.8666666666666667,4,0.20000000000000001,1.8333333333333333,0,1,0.5,2.7999999999999998,0.96666666666666667,4.7000000000000002,1.5,4.4333333333333336,0.76666666666666661,1.8666666666666667,0.46666666666666667,1.6000000000000001,4.7999999999999998,2.5666666666666664,0,1.8333333333333333,1.3999999999999999,2.1333333333333333,1.2,0.19999999999999998,3.6333333333333333,4.2000000000000002,1.0333333333333334,0.066666666666666666,0.20000000000000001,0.66666666666666663,0.6333333333333333,4.4000000000000004,3.2000000000000002,4.7000000000000002,2.5666666666666664,2.7333333333333334,0.69999999999999996,0.20000000000000001,0.80000000000000004],"z":[5.2000000000000002,3.6000000000000001,3.2000000000000002,1,2.7999999999999998,4.2000000000000002,0.40000000000000002,1.3999999999999999,4.4000000000000004,0.59999999999999998,0.20000000000000001,4,0.59999999999999998,2,3.2000000000000002,0.40000000000000002,2.2000000000000002,0.40000000000000002,4.4000000000000004,1,2.6000000000000001,0.40000000000000002,0.59999999999999998,3,0.20000000000000001,0.59999999999999998,4.2000000000000002,4.2000000000000002,1.6000000000000001,0,3.7999999999999998,3.3999999999999999,0,2.6000000000000001,0.80000000000000004,3.7999999999999998,1.3999999999999999,1.8,4.2000000000000002,2,3,3.2000000000000002,3.2000000000000002,2.7999999999999998,3.6000000000000001,2.2000000000000002,4,4.4000000000000004,2.3999999999999999,3,3.3999999999999999,1.8,1,2.6000000000000001,1.2,4,2,2.3999999999999999,0.40000000000000002,2,5.2000000000000002,1.3999999999999999,1,1,0.80000000000000004,0,2.7999999999999998,4.2000000000000002,1.3999999999999999,2,3,3.6000000000000001,3.3999999999999999,2,1.6000000000000001,1,0.80000000000000004,0.59999999999999998,0.20000000000000001,4.5999999999999996,0.80000000000000004,0,4.2000000000000002,2.7999999999999998,2.7999999999999998,2,2.2000000000000002,0.20000000000000001,2,2.3999999999999999,3.3999999999999999,1.6000000000000001,3.6000000000000001,2.7999999999999998,1,0.40000000000000002,3.3999999999999999,0.80000000000000004,2.3999999999999999,2.6000000000000001,2.6000000000000001,0.80000000000000004,0.59999999999999998,2,1.3999999999999999,0.40000000000000002,4.2000000000000002,1.2,3.2000000000000002,1.8,2,2,4.4000000000000004,3.7999999999999998,4.4000000000000004,5,1.2,4.4000000000000004,1,4.7999999999999998,1.8,2.7999999999999998,2.3999999999999999,3,4,2.6000000000000001,4.5999999999999996,3.7999999999999998,0.59999999999999998,0.40000000000000002,5.2000000000000002,2.2000000000000002,1.3999999999999999,4.7999999999999998,1.2,1.3999999999999999,0.20000000000000001,2.3999999999999999,0.20000000000000001,4.2000000000000002,4.2000000000000002,2.6000000000000001,2.2000000000000002,1.2,3.3999999999999999,4.2000000000000002,3,3.6000000000000001,1.8,1.3999999999999999,2.2000000000000002,0.59999999999999998,2.6000000000000001,1.6000000000000001,3.2000000000000002,3.7999999999999998,4.4000000000000004,4.2000000000000002,1.8,3.6000000000000001,1.8,4.4000000000000004,2.3999999999999999,5.2000000000000002,0.80000000000000004,3,1.6000000000000001,2.2000000000000002,2.2000000000000002,4.4000000000000004,3.7999999999999998,3.3999999999999999,1.2,4.7999999999999998,4,1.3999999999999999,4,5.5999999999999996,1.2,2.2000000000000002,0,2,1.8,3.6000000000000001,4.7999999999999998,0.80000000000000004,0.40000000000000002,2.6000000000000001,2.7999999999999998,4.4000000000000004,1.6000000000000001,1.2,3,2,1.3999999999999999,3.3999999999999999,2.6000000000000001,1,2.3999999999999999,3.7999999999999998,3.2000000000000002,3,5.5999999999999996,3.6000000000000001,4.4000000000000004,1.3999999999999999,3.7999999999999998,2,1.6000000000000001,3,4.2000000000000002,2.3999999999999999,4.2000000000000002,1.8,4.4000000000000004,4.7999999999999998,1.8,1.8,4,5,1.8,1.2,1.8,4.2000000000000002,0.20000000000000001,1.6000000000000001,0.59999999999999998,1.8,0.80000000000000004,1.3999999999999999,2.2000000000000002,1.6000000000000001,2,3.3999999999999999,3.3999999999999999,1.2,3.6000000000000001,3,5.5999999999999996,2.6000000000000001,2.7999999999999998,5,1,3.2000000000000002,3.3999999999999999,2.7999999999999998,3.7999999999999998,4.2000000000000002,2.6000000000000001,1.3999999999999999,1.6000000000000001,2.7999999999999998,1.6000000000000001,2.3999999999999999,3.2000000000000002,3.7999999999999998,1.8,4.4000000000000004,1.6000000000000001,1.3999999999999999,2,3.3999999999999999,5.4000000000000004,1,3.3999999999999999,0.59999999999999998,3.3999999999999999,1.2,3.6000000000000001,1.2,5.7999999999999998,3,5.2000000000000002,3,3.7999999999999998,0.80000000000000004,3.2000000000000002,5,4,0.40000000000000002,2.3999999999999999,2.6000000000000001,3.2000000000000002,2.3999999999999999,1.6000000000000001,5.2000000000000002,5.2000000000000002,0.80000000000000004,0.80000000000000004,0.59999999999999998,1.3999999999999999,1.6000000000000001,4.2000000000000002,2.7999999999999998,3.3999999999999999,2.3999999999999999,5,1,0.80000000000000004,2.2000000000000002],"mode":"markers","type":"scatter3d","marker":{"colorbar":{"title":"","ticklen":2},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(32,35,119,1)"],["0.0833333333333334","rgba(38,45,127,1)"],["0.125","rgba(43,55,135,1)"],["0.166666666666667","rgba(48,65,142,1)"],["0.208333333333333","rgba(53,75,150,1)"],["0.25","rgba(57,85,158,1)"],["0.291666666666667","rgba(61,95,165,1)"],["0.333333333333333","rgba(65,105,173,1)"],["0.375","rgba(69,116,181,1)"],["0.416666666666667","rgba(73,127,189,1)"],["0.458333333333333","rgba(76,137,197,1)"],["0.5","rgba(79,148,205,1)"],["0.541666666666667","rgba(84,153,209,1)"],["0.583333333333333","rgba(89,157,212,1)"],["0.625","rgba(94,162,216,1)"],["0.666666666666667","rgba(98,167,220,1)"],["0.708333333333333","rgba(103,172,224,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(112,181,231,1)"],["0.833333333333333","rgba(117,186,235,1)"],["0.875","rgba(121,191,239,1)"],["0.916666666666667","rgba(126,196,242,1)"],["0.958333333333333","rgba(130,201,246,1)"],["1","rgba(135,206,250,1)"]],"showscale":false,"color":[1,3,1,3,2,2,3,3,2,2,3,1,3,1,2,3,2,3,1,3,2,3,3,2,3,3,2,2,3,3,1,2,3,2,3,1,3,3,2,3,2,1,2,2,1,3,1,1,2,3,2,3,3,2,3,1,3,2,3,2,2,3,3,2,3,3,2,2,3,3,2,1,3,2,3,3,3,3,3,2,3,3,2,2,3,3,3,3,3,3,2,2,1,2,3,3,3,3,3,2,1,3,3,2,2,3,2,3,2,3,2,2,2,1,2,1,3,1,2,1,2,3,1,3,2,3,2,2,3,3,1,2,3,1,3,3,3,2,3,2,2,1,3,3,2,1,2,2,3,3,2,3,2,3,3,2,2,1,3,2,2,2,3,2,3,3,2,3,2,1,2,2,3,1,2,3,2,1,3,2,3,3,3,1,2,2,3,2,2,2,3,3,3,2,2,1,3,3,3,2,3,2,2,2,1,3,2,3,3,3,2,2,1,3,1,2,3,2,2,2,3,3,2,1,3,3,3,2,3,3,3,3,3,2,2,3,1,3,3,2,3,2,3,3,1,2,2,2,2,3,3,3,2,2,3,1,3,2,3,3,3,2,1,3,2,3,3,3,2,3,1,2,1,3,2,3,2,1,2,3,2,3,2,3,3,1,1,3,3,3,3,3,1,1,1,2,2,3,3,3],"line":{"colorbar":{"title":"","ticklen":2},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(32,35,119,1)"],["0.0833333333333334","rgba(38,45,127,1)"],["0.125","rgba(43,55,135,1)"],["0.166666666666667","rgba(48,65,142,1)"],["0.208333333333333","rgba(53,75,150,1)"],["0.25","rgba(57,85,158,1)"],["0.291666666666667","rgba(61,95,165,1)"],["0.333333333333333","rgba(65,105,173,1)"],["0.375","rgba(69,116,181,1)"],["0.416666666666667","rgba(73,127,189,1)"],["0.458333333333333","rgba(76,137,197,1)"],["0.5","rgba(79,148,205,1)"],["0.541666666666667","rgba(84,153,209,1)"],["0.583333333333333","rgba(89,157,212,1)"],["0.625","rgba(94,162,216,1)"],["0.666666666666667","rgba(98,167,220,1)"],["0.708333333333333","rgba(103,172,224,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(112,181,231,1)"],["0.833333333333333","rgba(117,186,235,1)"],["0.875","rgba(121,191,239,1)"],["0.916666666666667","rgba(126,196,242,1)"],["0.958333333333333","rgba(130,201,246,1)"],["1","rgba(135,206,250,1)"]],"showscale":false,"color":[1,3,1,3,2,2,3,3,2,2,3,1,3,1,2,3,2,3,1,3,2,3,3,2,3,3,2,2,3,3,1,2,3,2,3,1,3,3,2,3,2,1,2,2,1,3,1,1,2,3,2,3,3,2,3,1,3,2,3,2,2,3,3,2,3,3,2,2,3,3,2,1,3,2,3,3,3,3,3,2,3,3,2,2,3,3,3,3,3,3,2,2,1,2,3,3,3,3,3,2,1,3,3,2,2,3,2,3,2,3,2,2,2,1,2,1,3,1,2,1,2,3,1,3,2,3,2,2,3,3,1,2,3,1,3,3,3,2,3,2,2,1,3,3,2,1,2,2,3,3,2,3,2,3,3,2,2,1,3,2,2,2,3,2,3,3,2,3,2,1,2,2,3,1,2,3,2,1,3,2,3,3,3,1,2,2,3,2,2,2,3,3,3,2,2,1,3,3,3,2,3,2,2,2,1,3,2,3,3,3,2,2,1,3,1,2,3,2,2,2,3,3,2,1,3,3,3,2,3,3,3,3,3,2,2,3,1,3,3,2,3,2,3,3,1,2,2,2,2,3,3,3,2,2,3,1,3,2,3,3,3,2,1,3,2,3,3,3,2,3,1,2,1,3,2,3,2,1,2,3,2,3,2,3,3,1,1,3,3,3,3,3,1,1,1,2,2,3,3,3]}},"frame":null},{"x":[0,4.4000000000000004],"y":[0,5.2333333333333334],"type":"scatter3d","mode":"markers","opacity":0,"hoverinfo":"none","showlegend":false,"marker":{"colorbar":{"title":"","ticklen":2,"len":0.5,"lenmode":"fraction","y":1,"yanchor":"top"},"cmin":1,"cmax":3,"colorscale":[["0","rgba(25,25,112,1)"],["0.0416666666666666","rgba(32,35,119,1)"],["0.0833333333333334","rgba(38,45,127,1)"],["0.125","rgba(43,55,135,1)"],["0.166666666666667","rgba(48,65,142,1)"],["0.208333333333333","rgba(53,75,150,1)"],["0.25","rgba(57,85,158,1)"],["0.291666666666667","rgba(61,95,165,1)"],["0.333333333333333","rgba(65,105,173,1)"],["0.375","rgba(69,116,181,1)"],["0.416666666666667","rgba(73,127,189,1)"],["0.458333333333333","rgba(76,137,197,1)"],["0.5","rgba(79,148,205,1)"],["0.541666666666667","rgba(84,153,209,1)"],["0.583333333333333","rgba(89,157,212,1)"],["0.625","rgba(94,162,216,1)"],["0.666666666666667","rgba(98,167,220,1)"],["0.708333333333333","rgba(103,172,224,1)"],["0.75","rgba(108,177,227,1)"],["0.791666666666667","rgba(112,181,231,1)"],["0.833333333333333","rgba(117,186,235,1)"],["0.875","rgba(121,191,239,1)"],["0.916666666666667","rgba(126,196,242,1)"],["0.958333333333333","rgba(130,201,246,1)"],["1","rgba(135,206,250,1)"]],"showscale":true,"color":[1,3],"line":{"color":"rgba(255,127,14,1)"}},"z":[0,5.7999999999999998],"frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+</section>
+<section id="alluvial-plots-and-latent-transition-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="alluvial-plots-and-latent-transition-analysis">Alluvial plots and Latent Transition Analysis</h2>
+<p>Alluvial plots showcase the transitions between classes over time, while LTA (or rather an LTA-like approach proposed by and adapted from <span class="citation" data-cites="lund2025">(<a href="#ref-lund2025" role="doc-biblioref">Lund and Ritz 2025</a>)</span> quantifies transition probabilities.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#merge T0 and T1 means data</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> <span class="fu">full_join</span>(mbi_scales0, mbi_scales1, <span class="at">by =</span> <span class="st">"case"</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">exhaustion_T0 =</span> exhaustion.x, <span class="at">cynicism_T0 =</span> cynicism.x,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>         <span class="at">inefficacy_T0 =</span> inefficacy.x, <span class="at">exhaustion_T1 =</span> exhaustion.y,</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">cynicism__T1 =</span> cynicism.y, <span class="at">inefficacy_T1 =</span> inefficacy.y)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="co">#assign class memberships for T0 and T1, 3-class solutions</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>mbi_profiles03 <span class="ot">=</span> mbi_profiles03 <span class="sc">|&gt;</span> </span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">artificialID =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">300</span>)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">artificialID =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">300</span>)</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> <span class="fu">left_join</span>(mbi_merged, mbi_profiles03, <span class="at">by =</span> <span class="st">"artificialID"</span>)</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">T0_3class =</span> Class) <span class="sc">|&gt;</span> </span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>model_number, <span class="sc">-</span>classes_number, <span class="sc">-</span>exhaustion, <span class="sc">-</span>cynicism, <span class="sc">-</span>inefficacy, </span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>         <span class="sc">-</span>CPROB1, <span class="sc">-</span>CPROB2, <span class="sc">-</span>CPROB3)</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>mbi_profiles13 <span class="ot">=</span> mbi_profiles13 <span class="sc">|&gt;</span> </span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">artificialID =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">300</span>)</span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> <span class="fu">left_join</span>(mbi_merged, mbi_profiles13, <span class="at">by =</span> <span class="st">"artificialID"</span>)</span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">T1_3class =</span> Class) <span class="sc">|&gt;</span> </span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>model_number, <span class="sc">-</span>classes_number, <span class="sc">-</span>exhaustion, <span class="sc">-</span>cynicism, <span class="sc">-</span>inefficacy, </span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>         <span class="sc">-</span>CPROB1, <span class="sc">-</span>CPROB2, <span class="sc">-</span>CPROB3)</span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T0_3class =</span> <span class="fu">factor</span>(T0_3class),</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>         <span class="at">T1_3class =</span> <span class="fu">factor</span>(T1_3class))</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a><span class="co">#reverse arbitrary class membership numbers: T0 2 = T1 3 and vice versa</span></span>
+<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T1_3class =</span> <span class="fu">fct_recode</span>(T1_3class,</span>
+<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>      <span class="st">"1"</span> <span class="ot">=</span> <span class="st">"1"</span>,</span>
+<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a>      <span class="st">"3"</span> <span class="ot">=</span> <span class="st">"2"</span>,</span>
+<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a>      <span class="st">"2"</span> <span class="ot">=</span> <span class="st">"3"</span>))</span>
+<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a>mbi_merged <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T0_3class =</span> <span class="fu">fct_recode</span>(T0_3class,<span class="st">"Disengaged/Burnout"</span> <span class="ot">=</span> <span class="st">"1"</span>,<span class="st">"Engagement"</span> <span class="ot">=</span> <span class="st">"2"</span>,<span class="st">"Overextended"</span> <span class="ot">=</span> <span class="st">"3"</span>),</span>
+<span id="cb24-44"><a href="#cb24-44" aria-hidden="true" tabindex="-1"></a>         <span class="at">T1_3class =</span> <span class="fu">fct_recode</span>(T1_3class,<span class="st">"Disengaged/Burnout"</span> <span class="ot">=</span> <span class="st">"1"</span>,<span class="st">"Engagement"</span> <span class="ot">=</span> <span class="st">"2"</span>,<span class="st">"Overextended"</span> <span class="ot">=</span> <span class="st">"3"</span>))</span>
+<span id="cb24-45"><a href="#cb24-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-46"><a href="#cb24-46" aria-hidden="true" tabindex="-1"></a>mbi_merged_alluv <span class="ot">=</span> mbi_merged</span>
+<span id="cb24-47"><a href="#cb24-47" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(mbi_merged_alluv)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 10
+   case exhaustion_T0 inefficacy_T0 cynicism_T0 exhaustion_T1 inefficacy_T1
+  &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;       &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;
+1     3           3.4           2.2       3.2             5.2           2  
+2     4           1.2           0         0               3.6           0  
+3     6           3.6           2         4               3.2           2  
+4     7           1.6           0.8       0.967           1             0.8
+5     8           2.2           1         0.833           2.8           0.8
+6    10           5             1.4       2.07            4.2           1.2
+# ℹ 4 more variables: cynicism__T1 &lt;dbl&gt;, artificialID &lt;int&gt;, T0_3class &lt;fct&gt;,
+#   T1_3class &lt;fct&gt;</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>mbi_merged_alluv <span class="ot">=</span> mbi_merged_alluv <span class="sc">|&gt;</span> </span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T0_3class =</span> <span class="fu">fct_relevel</span>(T0_3class,  <span class="st">"Disengaged/Burnout"</span>, <span class="st">"Overextended"</span>, <span class="st">"Engagement"</span>),</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">T1_3class =</span> <span class="fu">fct_relevel</span>(T1_3class,  <span class="st">"Disengaged/Burnout"</span>, <span class="st">"Overextended"</span>, <span class="st">"Engagement"</span>))</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>all1 <span class="ot">=</span> <span class="fu">ggplot</span>(mbi_merged_alluv, <span class="fu">aes</span>(<span class="at">y =</span> <span class="dv">1</span>, <span class="at">axis1 =</span> T0_3class, <span class="at">axis2 =</span> T1_3class)) <span class="sc">+</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_alluvium</span>(<span class="fu">aes</span>(<span class="at">fill =</span> T0_3class), <span class="at">width =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">12</span>) <span class="sc">+</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_stratum</span>(<span class="fu">aes</span>(<span class="at">fill =</span> <span class="fu">after_stat</span>(stratum)), <span class="at">width =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">12</span>, <span class="at">alpha =</span> <span class="fl">0.8</span>,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"grey30"</span>) <span class="sc">+</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_label</span>(<span class="at">stat =</span> <span class="st">"stratum"</span>, <span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">after_stat</span>(stratum)), <span class="at">color =</span> <span class="st">"black"</span>) <span class="sc">+</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="st">"T0"</span>, <span class="st">"T1"</span>), <span class="at">expand =</span> <span class="fu">c</span>(.<span class="dv">05</span>, .<span class="dv">05</span>)) <span class="sc">+</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"Burnout profiles"</span>,<span class="at">values =</span> <span class="fu">c</span>(</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Disengaged/Burnout"</span>      <span class="ot">=</span> <span class="st">"midnightblue"</span>,</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Engagement"</span>   <span class="ot">=</span> <span class="st">"lightskyblue"</span>,</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Overextended"</span> <span class="ot">=</span> <span class="st">"steelblue3"</span>),</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.translate =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Longitudinal Stability of Latent Burnout Profiles"</span>) <span class="sc">+</span></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>all1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in to_lodes_form(data = data, axes = axis_ind, discern =
+params$discern): Some strata appear at multiple axes.
+Warning in to_lodes_form(data = data, axes = axis_ind, discern =
+params$discern): Some strata appear at multiple axes.
+Warning in to_lodes_form(data = data, axes = axis_ind, discern =
+params$discern): Some strata appear at multiple axes.</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="20260227_lpa_SH_files/figure-html/alluvial%20plots-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">#ggsave("3_alluvial.png", all1, width = 12, height = 10, bg = "white")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Latent transition analysis in R is unusual, but feasible, as <span class="citation" data-cites="lund2025">Lund and Ritz (<a href="#ref-lund2025" role="doc-biblioref">2025</a>)</span> nicely show. We can skip the maximum likelihood imputation part (no missing data) and start off right with predicted transition tables:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>lta_data <span class="ot">=</span> mbi_merged <span class="sc">|&gt;</span> </span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(case,T0_3class, T1_3class)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Probability of being in each Session 2 class, by Session 1 class</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit multinomial model: Session 2 class predicted by Session 1 class</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>trans_model <span class="ot">=</span> <span class="fu">multinom</span>(T1_3class <span class="sc">~</span> T0_3class <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> lta_data, <span class="at">trace =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Get predicted probabilities for each Session 1 class</span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>pred_probs <span class="ot">=</span> <span class="fu">predict</span>(trans_model, </span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>                     <span class="at">newdata =</span> <span class="fu">data.frame</span>(<span class="at">T0_3class =</span> <span class="fu">c</span>(<span class="st">"Disengaged/Burnout"</span>,<span class="st">"Overextended"</span>,<span class="st">"Engagement"</span>)), </span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>                     <span class="at">type =</span> <span class="st">"probs"</span>)</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Create transition probability matrix</span></span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>transition_matrix <span class="ot">=</span> <span class="fu">as.data.frame</span>(pred_probs)</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(transition_matrix) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Disengaged/Burnout T0"</span>,<span class="st">"Overextended T0"</span>,<span class="st">"Engagement T0"</span>) </span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(transition_matrix) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Disengaged/Burnout T1"</span>,<span class="st">"Overextended T1"</span>,<span class="st">"Engagement T1"</span>) </span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"Transition Probability Matrix:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Transition Probability Matrix:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>prop_df <span class="ot">=</span> <span class="fu">print</span>(<span class="fu">round</span>(transition_matrix, <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                      Disengaged/Burnout T1 Overextended T1 Engagement T1
+Disengaged/Burnout T0                 0.600           0.354         0.046
+Overextended T0                       0.053           0.623         0.325
+Engagement T0                         0.008           0.140         0.851</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>prop_df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                      Disengaged/Burnout T1 Overextended T1 Engagement T1
+Disengaged/Burnout T0                 0.600           0.354         0.046
+Overextended T0                       0.053           0.623         0.325
+Engagement T0                         0.008           0.140         0.851</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co">#write_xlsx(prop_df, "3_burnout_profiles_transitions.xlsx")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>And now, finally, quantify the likelihood of specific class memberships in session 2 by session 1 class membership using binary logistic regressions:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Probability of being in "Burnout/Disengaged" at session 2</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>fit_burnout <span class="ot">=</span> <span class="fu">glm</span>(T1_3class <span class="sc">==</span> <span class="st">"Disengaged/Burnout"</span> <span class="sc">~</span> T0_3class <span class="sc">-</span> <span class="dv">1</span>, </span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">family =</span> binomial,</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lta_data)</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>coefs_burnout <span class="ot">=</span> <span class="fu">coef</span>(fit_burnout)</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>probs_burnout <span class="ot">=</span> <span class="fu">exp</span>(coefs_burnout) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(coefs_burnout))</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"Probability of Disengaged/Burnout at Session 2 by Session 1 class:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Probability of Disengaged/Burnout at Session 2 by Session 1 class:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">round</span>(probs_burnout, <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>T0_3classDisengaged/Burnout         T0_3classEngagement 
+                      0.600                       0.008 
+      T0_3classOverextended 
+                      0.053 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Probability of being in "Overextended" at session 2</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>fit_overextended <span class="ot">=</span> <span class="fu">glm</span>(T1_3class <span class="sc">==</span> <span class="st">"Overextended"</span> <span class="sc">~</span> T0_3class <span class="sc">-</span> <span class="dv">1</span>, </span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">family =</span> binomial, </span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">data =</span> lta_data)</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>coefs_overextended <span class="ot">=</span> <span class="fu">coef</span>(fit_overextended)</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>probs_overextended <span class="ot">=</span> <span class="fu">exp</span>(coefs_overextended) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(coefs_overextended))</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"Probability of Overextended at Session 2 by Session 1 class:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Probability of Overextended at Session 2 by Session 1 class:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">round</span>(probs_overextended, <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>T0_3classDisengaged/Burnout         T0_3classEngagement 
+                      0.354                       0.140 
+      T0_3classOverextended 
+                      0.623 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Probability of being in "Engagement" at session 2</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>fit_engagement <span class="ot">=</span> <span class="fu">glm</span>(T1_3class <span class="sc">==</span> <span class="st">"Engagement"</span> <span class="sc">~</span> T0_3class <span class="sc">-</span> <span class="dv">1</span>,  <span class="co"># adjust labels</span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>                     <span class="at">family =</span> binomial, </span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> lta_data)</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>coefs_engagement <span class="ot">=</span> <span class="fu">coef</span>(fit_engagement)</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>probs_engagement <span class="ot">=</span> <span class="fu">exp</span>(coefs_engagement) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(coefs_engagement))</span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"Probability of Engagement at Session 2 by Session 1 class:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Probability of Engagement at Session 2 by Session 1 class:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">round</span>(probs_engagement, <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>T0_3classDisengaged/Burnout         T0_3classEngagement 
+                      0.046                       0.851 
+      T0_3classOverextended 
+                      0.325 </code></pre>
+</div>
+</div>
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-lund2025" class="csl-entry" role="listitem">
+Lund, Lisbeth, and Christian Ritz. 2025. <span>“Flexible and Modular Latent Transition Analysis<span></span>A Tutorial Using R.”</span> <em>PLOS ONE</em> 20 (1): e0317617. <a href="https://doi.org/10.1371/journal.pone.0317617">https://doi.org/10.1371/journal.pone.0317617</a>.
+</div>
+</div></section></div></main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

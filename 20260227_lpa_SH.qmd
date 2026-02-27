@@ -1,0 +1,449 @@
+---
+title: "Latent profile analysis"
+author: "Simon"
+date: 2026-02-27
+format: html
+editor: visual
+echo: true
+bibliography: references.bib
+---
+
+## Preprocessing
+
+```{r message=FALSE, warning=FALSE}
+#| label: activate packages
+library(readxl)
+library(writexl)
+library(car)
+library(tidyverse)
+library(tidyLPA)
+library(mclust)
+library(ggplot2)
+library(ggalluvial)
+library(forcats)
+library(nnet)
+```
+
+Add the data and set it up for my needs:
+
+```{r}
+#| label: add data
+
+setwd("~/EKFZ/02_coding/julian")
+mbi_data = read_xlsx("20260205_MBI-GS Items DFG.xlsx")
+
+mbi_data = mbi_data |> 
+  rename(case = Lab_Nr) |> 
+  group_by(case) |> 
+  # reverse-code PE items  
+  mutate(across(ends_with("_PE"),
+      ~ 6 - .x, .names = "{.col}_IE")) 
+
+#select only relevant variables
+
+mbi_data = mbi_data |> 
+  dplyr::select(case, T0_MBI1_EE, T0_MBI2_EE, T0_MBI3_EE, T0_MBI4_EE, T0_MBI5_PE_IE, T0_MBI6_EE, T0_MBI7_PE_IE,
+         T0_MBI8_CY, T0_MBI9_CY, T0_MBI10_PE_IE, T0_MBI11_PE_IE, T0_MBI12_PE, T0_MBI13_CY, T0_MBI14_CY, 
+         T0_MBI15_CY, T0_MBI16_PE_IE,T1_MBI1_EE, T1_MBI2_EE, T1_MBI3_EE, T1_MBI4_EE, T1_MBI5_PE_IE, T1_MBI6_EE, T1_MBI7_PE_IE,
+         T1_MBI8_CY, T1_MBI9_CY, T1_MBI10_PE_IE, T1_MBI11_PE_IE, T1_MBI12_PE, T1_MBI13_CY, T1_MBI14_CY, 
+         T1_MBI15_CY, T1_MBI16_PE_IE)
+
+mbi_t0 = mbi_data |> 
+  dplyr::select(case, T0_MBI1_EE, T0_MBI2_EE, T0_MBI3_EE, T0_MBI4_EE, T0_MBI5_PE_IE, T0_MBI6_EE, T0_MBI7_PE_IE,
+         T0_MBI8_CY, T0_MBI9_CY, T0_MBI10_PE_IE, T0_MBI11_PE_IE, T0_MBI12_PE, T0_MBI13_CY, T0_MBI14_CY, 
+         T0_MBI15_CY, T0_MBI16_PE_IE)
+mbi_t1 = mbi_data |> 
+  dplyr::select(case,T1_MBI1_EE, T1_MBI2_EE, T1_MBI3_EE, T1_MBI4_EE, T1_MBI5_PE_IE, T1_MBI6_EE, T1_MBI7_PE_IE,
+         T1_MBI8_CY, T1_MBI9_CY, T1_MBI10_PE_IE, T1_MBI11_PE_IE, T1_MBI12_PE, T1_MBI13_CY, T1_MBI14_CY, 
+         T1_MBI15_CY, T1_MBI16_PE_IE)
+```
+
+Create mean scales for each timepoint so we can conduct **LPA** separately for each timepoint. Later, we will assess transitions and transition probabilities over time.
+
+```{r}
+#| label: mean scales
+
+mbi_scales0 = mbi_t0 |> 
+  group_by(case) |> 
+  # compute means only if there are no NAs among the respective items
+  mutate(
+    exhaustion = if (any(is.na(c_across(ends_with("EE"))))) NA_real_
+    else mean(c_across(ends_with("EE"))),
+    inefficacy = if (any(is.na(c_across(ends_with("IE"))))) NA_real_
+    else mean(c_across(ends_with("IE"))),
+    cynicism = if (any(is.na(c_across(ends_with("CY"))))) NA_real_
+    else mean(c_across(ends_with("CY")))) |> 
+  ungroup() |> 
+  dplyr::select(case, exhaustion, inefficacy, cynicism)
+head(mbi_scales0)
+
+mbi_scales1 = mbi_t1 |> 
+  group_by(case) |> 
+  # compute means only if there are no NAs among the respective items
+  mutate(
+    exhaustion = if (any(is.na(c_across(ends_with("EE"))))) NA_real_
+    else mean(c_across(ends_with("EE"))),
+    inefficacy = if (any(is.na(c_across(ends_with("IE"))))) NA_real_
+    else mean(c_across(ends_with("IE"))),
+    cynicism = if (any(is.na(c_across(ends_with("CY"))))) NA_real_
+    else mean(c_across(ends_with("CY")))) |> 
+  ungroup() |> 
+  dplyr::select(case, exhaustion, inefficacy, cynicism)
+head(mbi_scales1)
+
+```
+
+## Latent Profile Analysis (LPA) for timepoint 0:
+
+Within each profile, exhaustion, cynicism, inefficacy are assumed to be independent - any observed correlation is explained entirely by profile membership.
+
+```{r}
+#| label: lpa for timepoint 0
+
+
+mbi_lpa0 = mbi_scales0 |> 
+  dplyr::select(exhaustion, inefficacy, cynicism)
+
+lpa = mbi_lpa0 |>
+  estimate_profiles(1:9,                        
+                    variances = "equal",
+                    covariances = "zero") 
+
+#class enumeration with model fit indices
+get_fit(lpa)
+```
+
+Evidently, the **3-class solution** seems to be superior:
+
+1.  lower BIC than previous class solutions and marginal gap to the 4/5 class solution
+
+2.  good, but lower entropy than other class solutions
+
+3.  most robust sample size per class - other models fit classes for 5 participants
+
+```{r}
+#| label: decide class solution and extract class memberships
+lpa_3 = lpa[[3]]
+
+mbi_profiles03 = lpa_3 |> 
+  get_data()
+
+# class models containing < 5% of the sample are rejected
+c1 = with(mbi_profiles03, length(which(Class == 1))) #65 (~22%)
+c2 = with(mbi_profiles03, length(which(Class == 2))) #121 (~40%)
+c3 = with(mbi_profiles03, length(which(Class == 3))) #114 (~38%)
+```
+
+Class 1 now contains `{r} c1` participants, class 2 contains `{r} c2` and class 3 `{r} c3` participants. Way to go! Now we will generate line plots that depict each classes' mean exhaustion, cynicism, and inefficacy scores:
+
+```{r}
+#| label: line plots 0
+
+line_plots03 = mbi_profiles03 |> 
+  pivot_longer(
+    cols = c(exhaustion, inefficacy, cynicism),
+    names_to = "dimension",
+    values_to = "score") |> 
+  group_by(Class, dimension) |> 
+  summarise(mean_score = mean(score),
+            .groups = "drop")
+
+#specify colors
+
+profile_colors03 = c(
+  "1" = "midnightblue",
+  "2" = "lightskyblue",
+  "3" = "steelblue3")
+
+line_plots03 = line_plots03 |> 
+  mutate(Class = factor(Class)) |> 
+  mutate(dimension = factor(dimension,levels = 
+                              c("exhaustion", "cynicism", "inefficacy")))
+
+fig1 = ggplot(line_plots03, aes(x = dimension, y = mean_score,
+                              group = Class, color = Class)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = profile_colors03, breaks = c("1", "3", "2"),
+                     labels = c("Disengaged/Burnout","Overextended","Engagement")) +
+  scale_x_discrete(labels = c(
+    exhaustion = "Exhaustion",
+    inefficacy   = "Inefficacy",
+    cynicism   = "Cynicism")) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+   scale_y_continuous(limits = c(0, 6)) +
+  theme_minimal()
+plot(fig1)
+
+#ggsave("T0_lpa_3.png", fig1, width = 8, height = 6, bg = "white")
+```
+
+We can also create 3d scatterplots to show the distribution of individual mean values:
+
+```{r}
+
+library(plotly)
+plot = plot_ly(x=mbi_profiles03$inefficacy, y=mbi_profiles03$cynicism, z=mbi_profiles03$exhaustion, 
+               type="scatter3d", mode="markers", color=mbi_profiles03$Class, colors = profile_colors03)
+
+plot = plot |> 
+  layout(title = "Burnout profiles",
+         scene = list(
+           xaxis = list(title = "Inefficacy"),
+           yaxis = list(title = "Cynicism"),
+           zaxis = list(title = "Exhaustion")))
+plot
+```
+
+## LPA for timepoint 1:
+
+```{r}
+#| label: lpa timepoint 1
+
+
+mbi_lpa1 = mbi_scales1 |> 
+  dplyr::select(exhaustion, inefficacy, cynicism)
+
+lpa1 = mbi_lpa1 |>
+  estimate_profiles(1:9,                        
+                    variances = "equal",
+                    covariances = "zero") 
+
+#class enumeration with model fit indices
+get_fit(lpa1)
+```
+
+Considering multiple fit indices, the **3-class solution** seems to be superior:
+
+1.  lower BIC than previous and subsequent class solutions
+
+2.  higher entropy than 4 class solution
+
+3.   higher smallest & largest average posterior classification probability than other class solutions
+
+4.  robust smallest class size of 15.3%
+
+```{r}
+#| label: decide class solution and extract class membership 1
+
+lpa_3 = lpa1[[3]]
+
+mbi_profiles13 = lpa_3 |> 
+  get_data()
+
+# class models containing < 5% of the sample are rejected
+c1 = with(mbi_profiles13, length(which(Class == 1))) #46 (~15%)
+c2 = with(mbi_profiles13, length(which(Class == 2))) #111 (~37%)
+c3 = with(mbi_profiles13, length(which(Class == 3))) #143 (~48%)
+
+```
+
+Class 1 now contains `{r} c1` participants, class 2 contains `{r} c2` and class 3 `{r} c3` participants. Now we will generate line plots that depict each classes' mean exhaustion, cynicism, and inefficacy scores:
+
+```{r}
+#| label: line plots 2
+
+line_plots13 = mbi_profiles13 |> 
+  pivot_longer(
+    cols = c(exhaustion, inefficacy, cynicism),
+    names_to = "dimension",
+    values_to = "score") |> 
+  group_by(Class, dimension) |> 
+  summarise(mean_score = mean(score),
+            .groups = "drop")
+
+#specify colors (reverse order so color coding is consistent with T0)
+profile_colors13 = c(
+  "1" = "midnightblue",
+  "2" = "steelblue3",
+  "3" = "lightskyblue")
+
+line_plots13 = line_plots13 |> 
+  mutate(Class = factor(Class)) |> 
+  mutate(dimension = factor(dimension,levels = 
+                              c("exhaustion", "cynicism", "inefficacy")))
+
+fig3 = ggplot(line_plots13, aes(x = dimension, y = mean_score,
+                              group = Class, color = Class)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = profile_colors13, breaks = c("1", "2", "3"),
+                     labels = c("Disengaged/Burnout","Overextended","Engagement")) +
+  scale_x_discrete(labels = c(
+    exhaustion = "Exhaustion",
+    inefficacy   = "Inefficacy",
+    cynicism   = "Cynicism")) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+  scale_y_continuous(limits = c(0, 6)) +
+  theme_minimal()
+plot(fig3)
+
+#ggsave("T1_lpa_3.png", fig3, width = 8, height = 6, bg = "white")
+```
+
+add 3d scatterplots for consistency:
+
+```{r}
+
+library(plotly)
+plot = plot_ly(x=mbi_profiles13$inefficacy, y=mbi_profiles13$cynicism, z=mbi_profiles13$exhaustion, 
+               type="scatter3d", mode="markers", color=mbi_profiles13$Class, colors = profile_colors13)
+
+plot = plot |> 
+  layout(title = "Burnout profiles",
+         scene = list(
+           xaxis = list(title = "Inefficacy"),
+           yaxis = list(title = "Cynicism"),
+           zaxis = list(title = "Exhaustion")))
+plot
+```
+
+## Alluvial plots and Latent Transition Analysis
+
+Alluvial plots showcase the transitions between classes over time, while LTA (or rather an LTA-like approach proposed by and adapted from [@lund2025] quantifies transition probabilities.
+
+```{r}
+#| label: prepare alluvial plots
+
+#merge T0 and T1 means data
+
+mbi_merged = full_join(mbi_scales0, mbi_scales1, by = "case")
+mbi_merged = mbi_merged |> 
+  rename(exhaustion_T0 = exhaustion.x, cynicism_T0 = cynicism.x,
+         inefficacy_T0 = inefficacy.x, exhaustion_T1 = exhaustion.y,
+         cynicism__T1 = cynicism.y, inefficacy_T1 = inefficacy.y)
+
+#assign class memberships for T0 and T1, 3-class solutions
+
+mbi_profiles03 = mbi_profiles03 |> 
+  mutate(artificialID = 1:300)
+mbi_merged = mbi_merged |> 
+  mutate(artificialID = 1:300)
+
+mbi_merged = left_join(mbi_merged, mbi_profiles03, by = "artificialID")
+mbi_merged = mbi_merged |> 
+  rename(T0_3class = Class) |> 
+  dplyr::select(-model_number, -classes_number, -exhaustion, -cynicism, -inefficacy, 
+         -CPROB1, -CPROB2, -CPROB3)
+
+mbi_profiles13 = mbi_profiles13 |> 
+  mutate(artificialID = 1:300)
+
+mbi_merged = left_join(mbi_merged, mbi_profiles13, by = "artificialID")
+mbi_merged = mbi_merged |> 
+  rename(T1_3class = Class) |> 
+  dplyr::select(-model_number, -classes_number, -exhaustion, -cynicism, -inefficacy, 
+         -CPROB1, -CPROB2, -CPROB3)
+
+mbi_merged = mbi_merged |> 
+  mutate(T0_3class = factor(T0_3class),
+         T1_3class = factor(T1_3class))
+
+#reverse arbitrary class membership numbers: T0 2 = T1 3 and vice versa
+mbi_merged = mbi_merged |> 
+  mutate(T1_3class = fct_recode(T1_3class,
+      "1" = "1",
+      "3" = "2",
+      "2" = "3"))
+
+mbi_merged = mbi_merged |> 
+  mutate(T0_3class = fct_recode(T0_3class,"Disengaged/Burnout" = "1","Engagement" = "2","Overextended" = "3"),
+         T1_3class = fct_recode(T1_3class,"Disengaged/Burnout" = "1","Engagement" = "2","Overextended" = "3"))
+
+mbi_merged_alluv = mbi_merged
+head(mbi_merged_alluv)
+```
+
+```{r}
+#| label: alluvial plots
+
+mbi_merged_alluv = mbi_merged_alluv |> 
+  mutate(T0_3class = fct_relevel(T0_3class,  "Disengaged/Burnout", "Overextended", "Engagement"),
+    T1_3class = fct_relevel(T1_3class,  "Disengaged/Burnout", "Overextended", "Engagement"))
+
+all1 = ggplot(mbi_merged_alluv, aes(y = 1, axis1 = T0_3class, axis2 = T1_3class)) +
+  geom_alluvium(aes(fill = T0_3class), width = 1/12) +
+  geom_stratum(aes(fill = after_stat(stratum)), width = 1/12, alpha = 0.8,
+    color = "grey30") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum)), color = "black") +
+  scale_x_discrete(limits = c("T0", "T1"), expand = c(.05, .05)) +
+  scale_fill_manual(
+    name = "Burnout profiles",values = c(
+      "Disengaged/Burnout"      = "midnightblue",
+      "Engagement"   = "lightskyblue",
+      "Overextended" = "steelblue3"),
+    na.translate = FALSE) +
+  ggtitle("Longitudinal Stability of Latent Burnout Profiles") +
+  theme_minimal()
+
+all1
+#ggsave("3_alluvial.png", all1, width = 12, height = 10, bg = "white")
+```
+
+Latent transition analysis in R is unusual, but feasible, as @lund2025 nicely show. We can skip the maximum likelihood imputation part (no missing data) and start off right with predicted transition tables:
+
+```{r}
+#| label: predicted transitions
+
+lta_data = mbi_merged |> 
+  select(case,T0_3class, T1_3class)
+
+# Probability of being in each Session 2 class, by Session 1 class
+# Fit multinomial model: Session 2 class predicted by Session 1 class
+trans_model = multinom(T1_3class ~ T0_3class - 1, data = lta_data, trace = FALSE)
+
+# Get predicted probabilities for each Session 1 class
+pred_probs = predict(trans_model, 
+                     newdata = data.frame(T0_3class = c("Disengaged/Burnout","Overextended","Engagement")), 
+                     type = "probs")
+
+# Create transition probability matrix
+transition_matrix = as.data.frame(pred_probs)
+rownames(transition_matrix) = c("Disengaged/Burnout T0","Overextended T0","Engagement T0") 
+colnames(transition_matrix) = c("Disengaged/Burnout T1","Overextended T1","Engagement T1") 
+
+print("Transition Probability Matrix:")
+prop_df = print(round(transition_matrix, 3))
+prop_df
+
+#write_xlsx(prop_df, "3_burnout_profiles_transitions.xlsx")
+```
+
+And now, finally, quantify the likelihood of specific class memberships in session 2 by session 1 class membership using binary logistic regressions:
+
+```{r}
+#| label: binary logistic regressions
+
+# Probability of being in "Burnout/Disengaged" at session 2
+fit_burnout = glm(T1_3class == "Disengaged/Burnout" ~ T0_3class - 1, 
+                  family = binomial,
+                  data = lta_data)
+
+coefs_burnout = coef(fit_burnout)
+probs_burnout = exp(coefs_burnout) / (1 + exp(coefs_burnout))
+
+print("Probability of Disengaged/Burnout at Session 2 by Session 1 class:")
+print(round(probs_burnout, 3))
+
+# Probability of being in "Overextended" at session 2
+fit_overextended = glm(T1_3class == "Overextended" ~ T0_3class - 1, 
+                       family = binomial, 
+                       data = lta_data)
+coefs_overextended = coef(fit_overextended)
+probs_overextended = exp(coefs_overextended) / (1 + exp(coefs_overextended))
+
+print("Probability of Overextended at Session 2 by Session 1 class:")
+print(round(probs_overextended, 3))
+
+# Probability of being in "Engagement" at session 2
+
+fit_engagement = glm(T1_3class == "Engagement" ~ T0_3class - 1,  # adjust labels
+                     family = binomial, 
+                     data = lta_data)
+coefs_engagement = coef(fit_engagement)
+probs_engagement = exp(coefs_engagement) / (1 + exp(coefs_engagement))
+
+print("Probability of Engagement at Session 2 by Session 1 class:")
+print(round(probs_engagement, 3))
+
+```
