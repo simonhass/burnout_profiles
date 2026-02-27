@@ -8,6 +8,8 @@ echo: true
 bibliography: references.bib
 ---
 
+![apparently you can use quarto like any text editor, adding pictures, tables, plots...whatever you please!](images/wp13280845-4k-ocean-life-wallpapers.jpg){fig-align="center"}
+
 ## Preprocessing
 
 ```{r message=FALSE, warning=FALSE}
@@ -219,7 +221,7 @@ Considering multiple fit indices, the **3-class solution** seems to be superior:
 
 2.  higher entropy than 4 class solution
 
-3.   higher smallest & largest average posterior classification probability than other class solutions
+3.  higher smallest & largest average posterior classification probability than other class solutions
 
 4.  robust smallest class size of 15.3%
 
@@ -300,7 +302,7 @@ plot
 
 ## Alluvial plots and Latent Transition Analysis
 
-Alluvial plots showcase the transitions between classes over time, while LTA (or rather an LTA-like approach proposed by and adapted from [@lund2025] quantifies transition probabilities.
+Alluvial plots showcase the transitions between classes over time, while LTA (or rather an LTA-like approach proposed by and adapted from @lund2025 quantifies transition probabilities.
 
 ```{r}
 #| label: prepare alluvial plots
