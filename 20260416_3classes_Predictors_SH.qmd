@@ -1,0 +1,2766 @@
+---
+title: "3-Class-LPA & Predictors"
+author: "Simon"
+date: 2026-04-16
+format: html
+editor: visual
+echo: true
+messages: false
+warnings: false
+bibliography: references.bib
+---
+
+## Preprocessing
+
+```{r warning = FALSE, message = FALSE}
+#| label: activate packages
+library(readxl)
+library(writexl)
+library(car)
+library(tidyverse)
+library(tidyLPA)
+library(mclust)
+library(ggplot2)
+library(ggalluvial)
+library(forcats)
+library(nnet)
+library(broom)
+library(knitr)
+library(ggeffects)
+library(interactions)
+```
+
+```{r}
+#| label: load data
+setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses")
+
+mbi_merged = read_xlsx("bl_f01_f02_classes.xlsx")
+head(mbi_merged)
+```
+
+## Mean differences between profiles
+
+Calculate mean scores per profile and compute mean differences:
+
+```{r}
+#| label: mean scores
+
+mean_bl = mbi_merged |> 
+  select(case, exhaustion_bl, inefficacy_bl, cynicism_bl, bl_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_bl, inefficacy_bl, cynicism_bl),
+    names_to = "bl_dimension",
+    values_to = "bl_score") |> 
+  group_by(bl_class, bl_dimension) |> 
+  summarise(mean_score_bl = mean(bl_score),
+            .groups = "drop")
+
+mean_f01 = mbi_merged |> 
+  select(case, exhaustion_f01, inefficacy_f01, cynicism_f01, f01_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_f01, inefficacy_f01, cynicism_f01),
+    names_to = "f01_dimension",
+    values_to = "f01_score") |> 
+  group_by(f01_class, f01_dimension) |> 
+  summarise(mean_score_f01 = mean(f01_score),
+            .groups = "drop")
+
+mean_f02 = mbi_merged |> 
+  select(case, exhaustion_f02, inefficacy_f02, cynicism_f02, f02_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_f02, inefficacy_f02, cynicism_f02),
+    names_to = "f02_dimension",
+    values_to = "f02_score") |> 
+  group_by(f02_class, f02_dimension) |> 
+  summarise(mean_score_f02 = mean(f02_score),
+            .groups = "drop")
+
+mean_scores = cbind(mean_bl, mean_f01, mean_f02)
+```
+
+Create a plot with overlaid timepoint profiles:
+
+```{r warning = FALSE, message = FALSE}
+#| label: mean superimposed plot
+#| echo: false
+
+mean_scores = mean_scores |> 
+  mutate(bl_dimension = str_remove(bl_dimension, "_bl$"),
+         f01_dimension = str_remove(f01_dimension, "_f01$"),
+         f02_dimension = str_remove(f02_dimension, "_f02$"))
+
+mean_scores_long = bind_rows(
+  mean_scores |>
+    select(bl_class, bl_dimension, mean_score_bl) |>
+    rename(class = bl_class, dimension = bl_dimension, mean_score = mean_score_bl) |>
+    mutate(timepoint = "bl"),
+  mean_scores |>
+    select(f01_class, f01_dimension, mean_score_f01) |>
+    rename(class = f01_class, dimension = f01_dimension, mean_score = mean_score_f01) |>
+    mutate(timepoint = "f01"),
+  mean_scores |>
+    select(f02_class, f02_dimension, mean_score_f02) |>
+    rename(class = f02_class, dimension = f02_dimension, mean_score = mean_score_f02) |>
+    mutate(timepoint = "f02")) |>
+  mutate(
+    dimension = factor(dimension, levels = c("exhaustion", "cynicism", "inefficacy")),
+    color_key = paste(class, timepoint, sep = "_"))
+
+# Color vector
+profile_colors = c(
+  "Burnout_bl" = "midnightblue", "Burnout_f01" = "steelblue3",
+  "Burnout_f02"= "lightskyblue", "Disengaged_bl" = "firebrick4",    
+  "Disengaged_f01" = "indianred3", "Disengaged_f02" = "palevioletred2",
+  "Overextended_bl" = "orangered3", "Overextended_f01" = "orange2",       
+  "Overextended_f02" = "lightsalmon", "Ineffective_bl" = "darkslategray", 
+  "Ineffective_f01" = "darkolivegreen", "Ineffective_f02" = "darkolivegreen3",
+  "Engagement_bl" = "darkgoldenrod3", "Engagement_f01" = "goldenrod2",    
+  "Engagement_f02" = "gold")
+
+mean_scores$mean_score_bl = as.numeric(mean_scores$mean_score_bl)
+mean_scores$mean_score_f01 = as.numeric(mean_scores$mean_score_f01)
+mean_scores$mean_score_f02 = as.numeric(mean_scores$mean_score_f02)
+
+fig1 = ggplot(mean_scores_long,
+               aes(x = dimension, y = mean_score,
+                   group = color_key, color = color_key)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = profile_colors) +
+  scale_x_discrete(labels = c(
+    exhaustion = "Exhaustion",
+    cynicism   = "Cynicism",
+    inefficacy = "Inefficacy"
+  )) +
+  scale_y_continuous(limits = c(0, 6)) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+  theme_minimal()
+
+plot(fig1)
+#setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/plots")
+#ggsave("mean_scores.png", fig1, width = 18, height = 16, bg = "white", units = "cm", dpi = 400)
+
+```
+
+```{r warning = FALSE, message = FALSE}
+#| label: mean differences between BL + Follow-Ups
+#| echo: false
+
+# Burnout
+burnout_ttest = mbi_merged |>
+  filter(bl_class == "Burnout",
+         f01_class == "Burnout") |>
+  select(case,exhaustion_bl, cynicism_bl, inefficacy_bl,
+    exhaustion_f01, cynicism_f01, inefficacy_f01)
+
+# Paired t-tests for each dimension
+t_exhaustion = t.test(burnout_ttest$exhaustion_bl, burnout_ttest$exhaustion_f01, paired = TRUE)
+t_cynicism   = t.test(burnout_ttest$cynicism_bl,   burnout_ttest$cynicism_f01,   paired = TRUE)
+t_inefficacy = t.test(burnout_ttest$inefficacy_bl, burnout_ttest$inefficacy_f01, paired = TRUE)
+
+library(broom)
+
+bind_rows(
+  tidy(t_exhaustion) |> mutate(dimension = "exhaustion"),
+  tidy(t_cynicism)   |> mutate(dimension = "cynicism"),
+  tidy(t_inefficacy) |> mutate(dimension = "inefficacy")) |>
+  select(dimension, estimate, statistic, p.value, conf.low, conf.high) |> 
+    kable(
+    caption = "Paired t-tests: Burnout profile at baseline vs. follow-up 1",
+    col.names = c("Dimension", "Mean Difference", "t", "p", "CI low", "CI high"),
+    digits = 3)
+
+# Disengaged
+disengaged_ttest = mbi_merged |>
+  filter(bl_class == "Disengaged",
+         f01_class == "Disengaged") |>
+  select(case,exhaustion_bl, cynicism_bl, inefficacy_bl,
+    exhaustion_f01, cynicism_f01, inefficacy_f01)
+
+# Paired t-tests for each dimension
+t_exhaustion = t.test(disengaged_ttest$exhaustion_bl, disengaged_ttest$exhaustion_f01, paired = TRUE)
+t_cynicism   = t.test(disengaged_ttest$cynicism_bl,disengaged_ttest$cynicism_f01,   paired = TRUE)
+t_inefficacy = t.test(disengaged_ttest$inefficacy_bl, disengaged_ttest$inefficacy_f01, paired = TRUE)
+
+bind_rows(
+  tidy(t_exhaustion) |> mutate(dimension = "exhaustion"),
+  tidy(t_cynicism)   |> mutate(dimension = "cynicism"),
+  tidy(t_inefficacy) |> mutate(dimension = "inefficacy")) |>
+  select(dimension, estimate, statistic, p.value, conf.low, conf.high) |> 
+    kable(
+    caption = "Disengaged profile at baseline vs. follow-up 1",
+    col.names = c("Dimension", "Mean Difference", "t", "p", "CI low", "CI high"),
+    digits = 3)
+
+# Overextended
+overextended_ttest = mbi_merged |>
+  filter(bl_class == "Overextended",
+         f01_class == "Overextended") |>
+  select(case,exhaustion_bl, cynicism_bl, inefficacy_bl,
+    exhaustion_f01, cynicism_f01, inefficacy_f01)
+
+# Paired t-tests for each dimension
+t_exhaustion = t.test(overextended_ttest$exhaustion_bl, overextended_ttest$exhaustion_f01, paired = TRUE)
+t_cynicism   = t.test(overextended_ttest$cynicism_bl,overextended_ttest$cynicism_f01,   paired = TRUE)
+t_inefficacy = t.test(overextended_ttest$inefficacy_bl, overextended_ttest$inefficacy_f01, paired = TRUE)
+
+bind_rows(
+  tidy(t_exhaustion) |> mutate(dimension = "exhaustion"),
+  tidy(t_cynicism)   |> mutate(dimension = "cynicism"),
+  tidy(t_inefficacy) |> mutate(dimension = "inefficacy")) |>
+  select(dimension, estimate, statistic, p.value, conf.low, conf.high) |> 
+    kable(
+    caption = "Overextended profile at baseline vs. follow-up 1",
+    col.names = c("Dimension", "Mean Difference", "t", "p", "CI low", "CI high"),      digits = 3)
+
+# Ineffective
+ineffective_ttest = mbi_merged |>
+  filter(bl_class == "Ineffective",
+         f01_class == "Ineffective") |>
+  select(case,exhaustion_bl, cynicism_bl, inefficacy_bl,
+    exhaustion_f01, cynicism_f01, inefficacy_f01)
+
+# Paired t-tests for each dimension
+t_exhaustion = t.test(ineffective_ttest$exhaustion_bl, ineffective_ttest$exhaustion_f01, paired = TRUE)
+t_cynicism   = t.test(ineffective_ttest$cynicism_bl,ineffective_ttest$cynicism_f01,   paired = TRUE)
+t_inefficacy = t.test(ineffective_ttest$inefficacy_bl, ineffective_ttest$inefficacy_f01, paired = TRUE)
+
+bind_rows(
+  tidy(t_exhaustion) |> mutate(dimension = "exhaustion"),
+  tidy(t_cynicism)   |> mutate(dimension = "cynicism"),
+  tidy(t_inefficacy) |> mutate(dimension = "inefficacy")) |>
+  select(dimension, estimate, statistic, p.value, conf.low, conf.high) |> 
+    kable(
+    caption = "Ineffective profile at baseline vs. follow-up 1",
+    col.names = c("Dimension", "Mean Difference", "t", "p", "CI low", "CI high"),
+    digits = 3)
+
+# Engagement
+engagement_ttest = mbi_merged |>
+  filter(bl_class == "Engagement",
+         f01_class == "Engagement") |>
+  select(case,exhaustion_bl, cynicism_bl, inefficacy_bl,
+    exhaustion_f01, cynicism_f01, inefficacy_f01)
+
+# Paired t-tests for each dimension
+t_exhaustion = t.test(engagement_ttest$exhaustion_bl, engagement_ttest$exhaustion_f01, paired = TRUE)
+t_cynicism   = t.test(engagement_ttest$cynicism_bl,engagement_ttest$cynicism_f01,   paired = TRUE)
+t_inefficacy = t.test(engagement_ttest$inefficacy_bl, engagement_ttest$inefficacy_f01, paired = TRUE)
+
+bind_rows(
+  tidy(t_exhaustion) |> mutate(dimension = "exhaustion"),
+  tidy(t_cynicism)   |> mutate(dimension = "cynicism"),
+  tidy(t_inefficacy) |> mutate(dimension = "inefficacy")) |>
+  select(dimension, estimate, statistic, p.value, conf.low, conf.high) |> 
+    kable(
+    caption = "Engagement profile at baseline vs. follow-up 1",
+    col.names = c("Dimension", "Mean Difference", "t", "p", "CI low", "CI high"),
+    digits = 3)
+
+```
+
+**Pool moderate classes**
+
+We will merge the three moderate classes - **Disengaged, Overextended,** and **Ineffective** - into one "burnout risk" group. Thereby, class sizes increase substantially, thereby enhancing predictability, robustness, and replicability of findings. We also hope that by pooling the three classes, more consistent patterns will emerge in terms of transitions between profiles.
+
+```{r}
+#| label: pool classes into one "burnout risk" group
+
+mbi_merged3 = mbi_merged |> 
+  mutate(bl_class = fct_recode(bl_class,"Burnout" = "Burnout","Risk" = "Disengaged","Risk" = "Ineffective", "Risk" = "Overextended", "Engagement" = "Engagement"))
+
+mbi_merged3 = mbi_merged3 |> 
+  mutate(f01_class = fct_recode(f01_class,"Burnout" = "Burnout","Risk" = "Disengaged","Risk" = "Ineffective", "Risk" = "Overextended", "Engagement" = "Engagement"))
+
+mbi_merged3 = mbi_merged3 |> 
+  mutate(f02_class = fct_recode(f02_class,"Burnout" = "Burnout","Risk" = "Disengaged","Risk" = "Ineffective", "Risk" = "Overextended", "Engagement" = "Engagement"))
+```
+
+## Mean plots per timepoint
+
+```{r message=FALSE, warning=FALSE}
+#| label: line plots bl
+#| echo: false
+
+individual_data = mbi_merged3 |>
+  select(case, exhaustion_bl, cynicism_bl, inefficacy_bl, bl_class) |>
+  pivot_longer(
+    cols = c(exhaustion_bl, cynicism_bl, inefficacy_bl),
+    names_to = "dimension",
+    values_to = "score"
+  ) |>
+  mutate(dimension = factor(dimension, levels = c("exhaustion_bl", "cynicism_bl", "inefficacy_bl")))
+
+line_plotsred3bl = mbi_merged3 |> 
+  select(case, exhaustion_bl, cynicism_bl, inefficacy_bl, bl_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_bl, inefficacy_bl, cynicism_bl),
+    names_to = "dimension",
+    values_to = "score") |> 
+  group_by(bl_class, dimension) |> 
+  summarise(mean_score = mean(score),
+            .groups = "drop")
+
+#specify colors
+profile_colorsred3bl = c(
+  "Burnout" = "midnightblue",
+  "Risk" = "steelblue3",
+  "Engagement" = "lightskyblue")
+
+line_plotsred3bl = line_plotsred3bl |> 
+  mutate(bl_class = factor(bl_class)) |> 
+  mutate(dimension = factor(dimension,levels = 
+                              c("exhaustion_bl", "cynicism_bl", "inefficacy_bl")))
+
+fig1 = ggplot() +
+  # Individual trajectories — plotted first so they appear behind mean lines
+  geom_line(data = individual_data, aes(x = dimension, y = score, group = case),
+            color = "gray25", linewidth = 0.4, alpha = 0.1) +
+  # Mean lines on top
+  geom_line(data = line_plotsred3bl, aes(x = dimension, y = mean_score, group = bl_class, 
+                                          color = bl_class), linewidth = 1.2) +
+  geom_point(data = line_plotsred3bl, aes(x = dimension, y = mean_score, group = bl_class, 
+                                           color = bl_class), size = 3) +
+  scale_color_manual(values = profile_colorsred3bl) +
+  scale_x_discrete(labels = c(
+    exhaustion_f02 = "Exhaustion",
+    cynicism_f02   = "Cynicism",
+    inefficacy_f02 = "Inefficacy")) +
+  scale_y_continuous(limits = c(0, 6)) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+  theme_minimal(base_size = 9) 
+plot(fig1)
+
+#setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/plots")
+#ggsave("bl_3_mean.png", fig1, width = 12, height = 10, bg = "white", units = "cm", dpi = 400)
+
+```
+
+```{r warning=FALSE, message=FALSE}
+#| label: line plots f01
+#| echo: false
+
+individual_data = mbi_merged3 |>
+  select(case, exhaustion_f01, cynicism_f01, inefficacy_f01, f01_class) |>
+  pivot_longer(
+    cols = c(exhaustion_f01, cynicism_f01, inefficacy_f01),
+    names_to = "dimension",
+    values_to = "score"
+  ) |>
+  mutate(dimension = factor(dimension, levels = c("exhaustion_f01", "cynicism_f01", "inefficacy_f01")))
+
+line_plotsred3f01 = mbi_merged3 |> 
+  select(case, exhaustion_f01, cynicism_f01, inefficacy_f01, f01_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_f01, inefficacy_f01, cynicism_f01),
+    names_to = "dimension",
+    values_to = "score") |> 
+  group_by(f01_class, dimension) |> 
+  summarise(mean_score = mean(score),
+            .groups = "drop")
+
+#specify colors
+profile_colorsred3f01 = c(
+  "Burnout" = "midnightblue",
+  "Risk" = "steelblue3",
+  "Engagement" = "lightskyblue")
+
+line_plotsred3f01 = line_plotsred3f01 |> 
+  mutate(f02_class = factor(f01_class)) |> 
+  mutate(dimension = factor(dimension,levels = 
+                              c("exhaustion_f01", "cynicism_f01", "inefficacy_f01")))
+
+fig1 = ggplot() +
+  # Individual trajectories — plotted first so they appear behind mean lines
+  geom_line(data = individual_data, aes(x = dimension, y = score, group = case),
+            color = "gray25", linewidth = 0.4, alpha = 0.1) +
+  # Mean lines on top
+  geom_line(data = line_plotsred3f01, aes(x = dimension, y = mean_score, group = f01_class, 
+                                          color = f01_class), linewidth = 1.2) +
+  geom_point(data = line_plotsred3f01, aes(x = dimension, y = mean_score, group = f01_class, 
+                                           color = f01_class), size = 3) +
+  scale_color_manual(values = profile_colorsred3f01) +
+  scale_x_discrete(labels = c(
+    exhaustion_f02 = "Exhaustion",
+    cynicism_f02   = "Cynicism",
+    inefficacy_f02 = "Inefficacy")) +
+  scale_y_continuous(limits = c(0, 6)) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+  theme_minimal(base_size = 9) 
+plot(fig1)
+
+#setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/plots")
+#ggsave("f01_3_mean.png", fig1, width = 12, height = 10, bg = "white", units = "cm", dpi = 400)
+
+```
+
+```{r warning=FALSE, message=FALSE}
+#| label: line plots f02
+#| echo: false
+
+individual_data = mbi_merged3 |>
+  select(case, exhaustion_f02, cynicism_f02, inefficacy_f02, f02_class) |>
+  pivot_longer(
+    cols = c(exhaustion_f02, cynicism_f02, inefficacy_f02),
+    names_to = "dimension",
+    values_to = "score"
+  ) |>
+  mutate(dimension = factor(dimension, levels = c("exhaustion_f02", "cynicism_f02", "inefficacy_f02")))
+
+line_plotsred3f02 = mbi_merged3 |> 
+  select(case, exhaustion_f02, cynicism_f02, inefficacy_f02, f02_class) |> 
+  pivot_longer(
+    cols = c(exhaustion_f02, inefficacy_f02, cynicism_f02),
+    names_to = "dimension",
+    values_to = "score") |> 
+  group_by(f02_class, dimension) |> 
+  summarise(mean_score = mean(score),
+            .groups = "drop")
+
+#specify colors
+profile_colorsred3f02 = c(
+  "Burnout" = "midnightblue",
+  "Risk" = "steelblue3",
+  "Engagement" = "lightskyblue")
+
+line_plotsred3f02 = line_plotsred3f02 |> 
+  mutate(f02_class = factor(f02_class)) |> 
+  mutate(dimension = factor(dimension,levels = 
+                              c("exhaustion_f02", "cynicism_f02", "inefficacy_f02")))
+
+fig1 = ggplot() +
+  # Individual trajectories — plotted first so they appear behind mean lines
+  geom_line(data = individual_data, aes(x = dimension, y = score, group = case),
+            color = "gray25", linewidth = 0.4, alpha = 0.1) +
+  # Mean lines on top
+  geom_line(data = line_plotsred3f02, aes(x = dimension, y = mean_score, group = f02_class, 
+                                          color = f02_class), linewidth = 1.2) +
+  geom_point(data = line_plotsred3f02, aes(x = dimension, y = mean_score, group = f02_class, 
+                                           color = f02_class), size = 3) +
+  scale_color_manual(values = profile_colorsred3f02) +
+  scale_x_discrete(labels = c(
+    exhaustion_f02 = "Exhaustion",
+    cynicism_f02   = "Cynicism",
+    inefficacy_f02 = "Inefficacy")) +
+  scale_y_continuous(limits = c(0, 6)) +
+  labs(y = "Mean Score", x = "", color = "Profile") +
+  theme_minimal(base_size = 9) 
+plot(fig1)
+
+#setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/plots")
+#ggsave("f02_3_mean.png", fig1, width = 12, height = 10, bg = "white", units = "cm", dpi = 400)
+```
+
+## LTA
+
+### Alluvial plot
+
+```{r warning = FALSE, message = FALSE}
+#| label: alluvial plot 3 classes
+#| echo: false
+
+all1 = ggplot(mbi_merged3, aes(y = 1, axis1 = bl_class, axis2 = f01_class, axis3 = f02_class)) +
+  geom_alluvium(aes(fill = bl_class), width = 1/12) +
+  geom_stratum(aes(fill = after_stat(stratum)), width = 1/12, alpha = 0.8,
+    color = "grey30") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum)), color = "black") +
+  scale_x_discrete(limits = c("Baseline", "Follow-up 1", "Follow-up 2"), expand = c(.05, .05)) +
+  scale_fill_manual(
+    name = "Burnout profiles",values = c(
+      "Burnout"      = "midnightblue",
+      "Risk"   = "steelblue3",
+      "Engagement" = "lightskyblue"),
+    na.translate = FALSE) +
+  ggtitle("Longitudinal Stability of Latent Burnout Profiles") +
+  theme_minimal()
+
+all1
+#setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/plots")
+#ggsave("alluvial_3.png", all1, width = 24, height = 16, bg = "white", units = "cm", dpi = 600)
+```
+
+### LTA-like approach
+
+Quantify transitions with an LTA-like approach [@lund2025]
+
+```{r}
+#| label: LTA
+#| echo: false
+
+lta_data = mbi_merged3 |> 
+  select(case, bl_class, f01_class, f02_class)
+
+# Probability of being in "Burnout" at F01
+fit_burnout = glm(f01_class == "Burnout" ~ bl_class - 1, 
+                  family = binomial,
+                  data = lta_data)
+
+coefs_burnout = coef(fit_burnout)
+probs_burnout = exp(coefs_burnout) / (1 + exp(coefs_burnout))
+
+print("Probability of Burnout at F01 by BL class:")
+print(round(probs_burnout, 3))
+
+# Probability of being in "Risk" at session 2
+fit_overextended = glm(f01_class == "Risk" ~ bl_class - 1, 
+                       family = binomial, 
+                       data = lta_data)
+coefs_overextended = coef(fit_overextended)
+probs_overextended = exp(coefs_overextended) / (1 + exp(coefs_overextended))
+
+print("Probability of Risk at F01 by BL class:")
+print(round(probs_overextended, 3))
+
+# Probability of being in "Engagement" at F01
+
+fit_engagement = glm(f01_class == "Engagement" ~ bl_class - 1, 
+                     family = binomial, 
+                     data = lta_data)
+coefs_engagement = coef(fit_engagement)
+probs_engagement = exp(coefs_engagement) / (1 + exp(coefs_engagement))
+
+print("Probability of Engagement at F01 by BL class:")
+print(round(probs_engagement, 3))
+```
+
+```{r}
+#| echo: false
+# Probability of being in "Burnout" at F02
+fit_burnout = glm(f02_class == "Burnout" ~ f01_class - 1, 
+                  family = binomial,
+                  data = lta_data)
+
+coefs_burnout = coef(fit_burnout)
+probs_burnout = exp(coefs_burnout) / (1 + exp(coefs_burnout))
+
+print("Probability of Burnout at F02 by BL class:")
+print(round(probs_burnout, 3))
+
+# Probability of being in "Risk" at session 3
+fit_overextended = glm(f02_class == "Risk" ~ f01_class - 1, 
+                       family = binomial, 
+                       data = lta_data)
+coefs_overextended = coef(fit_overextended)
+probs_overextended = exp(coefs_overextended) / (1 + exp(coefs_overextended))
+
+print("Probability of Risk at F02 by BL class:")
+print(round(probs_overextended, 3))
+
+# Probability of being in "Engagement" at F02
+
+fit_engagement = glm(f02_class == "Engagement" ~ f01_class - 1, 
+                     family = binomial, 
+                     data = lta_data)
+coefs_engagement = coef(fit_engagement)
+probs_engagement = exp(coefs_engagement) / (1 + exp(coefs_engagement))
+
+print("Probability of Engagement at F02 by BL class:")
+print(round(probs_engagement, 3))
+```
+
+## ERI as predictor
+
+```{r warning=FALSE, message=FALSE}
+#| label: load respective data
+#| echo: false
+
+setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/data")
+eri_bl = read.csv2("export_eri_bl_20240620.csv")
+eri_follow1 = read.csv2("export_eri_fu01_20240620.csv")
+eri_follow2 = read.csv2("export_eri_fu02_20240620.csv")
+
+eri_bl = eri_bl |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-bl$")) |> 
+  group_by(case) |> 
+  # reverse-code reward items  
+  mutate(across(starts_with(c("ERI5", "ERI6", "ERI7")),
+                ~ recode(as.character(.x),
+                         "4"="1","3"="2","2"="3","1"="4"),
+                .names="{.col}_2")) |> 
+  mutate(across(ends_with("_2"), ~ suppressWarnings(as.numeric(.x))))
+
+eri_bl = eri_bl |> 
+  dplyr::select(case, ERI1_Eff, ERI2_Eff, ERI3_Eff, ERI4_Rew, ERI5_Rew_2, ERI6_Rew_2, ERI7_Rew_2, ERI8_Rew, ERI9_Rew, ERI10_Rew)
+eri_bl = eri_bl |> 
+  rename(ERI5_Rew = ERI5_Rew_2,
+         ERI6_Rew = ERI6_Rew_2,
+         ERI7_Rew = ERI7_Rew_2)
+
+eri_bl = eri_bl |> 
+  group_by(case) |> 
+  mutate(
+    effort = if (any(is.na(c_across(ends_with("Eff"))))) NA_real_
+    else sum(c_across(ends_with("Eff"))),
+    reward = if (any(is.na(c_across(ends_with("Rew"))))) NA_real_
+    else sum(c_across(ends_with("Rew"))),
+    err = (effort/reward) * (7/3))  |> 
+  ungroup() 
+
+eri_bl = eri_bl |> 
+  dplyr::select(case, err) |> 
+  rename(errbl = err)
+#head(eri_bl)
+
+eri_follow1 = eri_follow1 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu01$")) |> 
+  group_by(case) |> 
+  # reverse-code reward items  
+  mutate(across(starts_with(c("ERI5", "ERI6", "ERI7")),
+                ~ recode(as.character(.x),
+                         "4"="1","3"="2","2"="3","1"="4"),
+                .names="{.col}_2")) |> 
+  mutate(across(ends_with("_2"), ~ suppressWarnings(as.numeric(.x))))
+
+eri_follow1 = eri_follow1 |> 
+  dplyr::select(case, ERI1_Eff, ERI2_Eff, ERI3_Eff, ERI4_Rew, ERI5_Rew_2, ERI6_Rew_2, ERI7_Rew_2, ERI8_Rew, ERI9_Rew, ERI10_Rew)
+eri_follow1 = eri_follow1 |> 
+  rename(ERI5_Rew = ERI5_Rew_2,
+         ERI6_Rew = ERI6_Rew_2,
+         ERI7_Rew = ERI7_Rew_2)
+
+eri_follow1 = eri_follow1 |> 
+  group_by(case) |> 
+  mutate(
+    effort = if (any(is.na(c_across(ends_with("Eff"))))) NA_real_
+    else sum(c_across(ends_with("Eff"))),
+    reward = if (any(is.na(c_across(ends_with("Rew"))))) NA_real_
+    else sum(c_across(ends_with("Rew"))),
+    err = (effort/reward) * (7/3))  |> 
+  ungroup() 
+
+eri_follow1 = eri_follow1 |> 
+  dplyr::select(case, err) |> 
+  rename(err1 = err)
+#head(eri_follow1)
+
+eri_follow2 = eri_follow2 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu02$")) |> 
+  group_by(case) |> 
+  # reverse-code reward items  
+  mutate(across(starts_with(c("ERI5", "ERI6", "ERI7")),
+                ~ recode(as.character(.x),
+                         "4"="1","3"="2","2"="3","1"="4"),
+                .names="{.col}_2")) |> 
+  mutate(across(ends_with("_2"), ~ suppressWarnings(as.numeric(.x))))
+
+eri_follow2 = eri_follow2 |> 
+  dplyr::select(case, ERI1_Eff, ERI2_Eff, ERI3_Eff, ERI4_Rew, ERI5_Rew_2, ERI6_Rew_2, ERI7_Rew_2, ERI8_Rew, ERI9_Rew, ERI10_Rew) |> 
+  rename(ERI5_Rew = ERI5_Rew_2,
+         ERI6_Rew = ERI6_Rew_2,
+         ERI7_Rew = ERI7_Rew_2)
+
+eri_follow2 = eri_follow2 |> 
+  group_by(case) |> 
+  mutate(
+    effort = if (any(is.na(c_across(ends_with("Eff"))))) NA_real_
+    else sum(c_across(ends_with("Eff"))),
+    reward = if (any(is.na(c_across(ends_with("Rew"))))) NA_real_
+    else sum(c_across(ends_with("Rew"))),
+    err = (effort/reward) * (7/3))  |> 
+  ungroup() 
+
+eri_follow2 = eri_follow2 |> 
+  dplyr::select(case, err) |> 
+  rename(err2 = err)
+#head(eri_follow2)
+
+```
+
+**Descriptive differences in ERR between profiles** at different timepoints:
+
+```{r}
+
+lta_data_eri3 |> 
+  group_by(bl_class) |> 
+  summarise(
+    mean_errbl = mean(errbl, na.rm = TRUE))
+
+anovaresult = aov(errbl ~ bl_class, data = lta_data_eri3)
+summary(anovaresult)
+TukeyHSD(anovaresult)
+
+lta_data_eri3 |> 
+  group_by(f01_class) |> 
+  summarise(
+    mean_err1 = mean(err1, na.rm = TRUE))
+
+anovaresult = aov(err1 ~ f01_class, data = lta_data_eri3)
+summary(anovaresult)
+TukeyHSD(anovaresult)
+
+lta_data_eri3 |> 
+  group_by(f02_class) |> 
+  summarise(
+    mean_err2 = mean(err2, na.rm = TRUE))
+
+anovaresult = aov(err2 ~ f02_class, data = lta_data_eri3)
+summary(anovaresult)
+TukeyHSD(anovaresult)
+```
+
+Engagement differs significantly from Burnout and Risk groups in terms of ERR values. At Follow-up 1 and 2, Burnout and Risk groups' ERR values also differ significantly.
+
+... of class membership at BL/F01/F02. We will use a multinomial logistic approach suggested by [@nagin2010] which closely resembles BCH analyses [@bakk2021a] but can be implemented more easily. By incorporating regression weights for the 5-class-solution, we account for the classification uncertainty inherent to LPA, expressed by posterior probabilities of assignment.
+
+```{r}
+#| label: ERI predicting class membership at various timepoints, 5 classes
+#| echo: false
+
+lta_data_eri5 = mbi_merged |> 
+  select(case, bl_class, f01_class, f02_class, bl_pprob, f1_pprob, f2_pprob)
+
+lta_data_eri5 = left_join(lta_data_eri5, eri_bl, by = "case")
+lta_data_eri5 = left_join(lta_data_eri5, eri_follow1, by = "case")
+lta_data_eri5 = left_join(lta_data_eri5, eri_follow2, by = "case")
+head(lta_data_eri5)
+```
+
+### Class memberships, 5-profile solution
+
+ERI predicting class memberships at **baseline.** We predict class membership with 1-unit increases in the Effort-Reward Ratio (which equals a massive deterioration). This ratio usually ranges from roughly **0.3 to 2.0**, meaning the full scale spans less than 2 units. A one-unit increase therefore represents a **very large, near-maximal shift** in work stress — essentially moving from the healthy to the pathological end of the scale. Large ORs for such a big increment are expected and theoretically coherent. We therefore also provide the OR values for 0.1-unit increases, which is much more digestible.
+
+```{r}
+
+lta_data_eri5bl = lta_data_eri5 |> 
+  select(bl_class, bl_pprob, errbl)
+
+#set reference level
+lta_data_eri5bl$bl_class = relevel(as.factor(lta_data_eri5bl$bl_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(bl_class ~ errbl, data = lta_data_eri5bl, weights = bl_pprob, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Disengaged
+# lower and upper CI on log-odds scale
+lower_log_disengaged = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_disengaged = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_disengaged = exp(lower_log_disengaged)
+upper_OR_disengaged = exp(upper_log_disengaged)
+
+# odds ratios
+ORerr_disengaged = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_disengaged = coef_mat[2,2] / se_mat[2,2]
+p_values_disengaged = 2 * (1 - pnorm(abs(z_stats_disengaged)))
+
+#####################
+#Overextended
+# lower and upper CI on log-odds scale
+lower_log_overextended = coef_mat[4,2] - 1.96 * se_mat[4,2]
+upper_log_overextended = coef_mat[4,2] + 1.96 * se_mat[4,2]
+
+# exponentiate: OR CI
+lower_OR_overextended = exp(lower_log_overextended)
+upper_OR_overextended = exp(upper_log_overextended)
+
+# odds ratios
+ORerr_overextended = exp(coef_mat[4,2])
+
+# Wald z-test
+z_stats_overextended = coef_mat[4,2] / se_mat[4,2]
+p_values_overextended = 2 * (1 - pnorm(abs(z_stats_overextended)))
+
+#####################
+#Ineffective
+
+lower_log_ineffective = coef_mat[3,2] - 1.96 * se_mat[3,2]
+upper_log_ineffective = coef_mat[3,2] + 1.96 * se_mat[3,2]
+
+# exponentiate: OR CI
+lower_OR_ineffective = exp(lower_log_ineffective)
+upper_OR_ineffective = exp(upper_log_ineffective)
+
+# odds ratios
+ORerr_ineffective = exp(coef_mat[3,2])
+
+# Wald z-test
+z_stats_ineffective = coef_mat[3,2] / se_mat[3,2]
+p_values_ineffective = 2 * (1 - pnorm(abs(z_stats_ineffective)))
+
+```
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at baseline were associated with 1500% higher odds (*31% higher odds for 0.1-unit-increases*) of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at baseline were associated with 2000% higher odds (*35% higher odds for 0.1-unit-increases*) of being in **Disengaged** compared to **Engagement** (OR = `{r} ORerr_disengaged` , 95% CI\[`{r} lower_OR_disengaged`,`{r} upper_OR_disengaged`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_disengaged`*,* *p* = `{r} p_values_disengaged`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at baseline were associated with 1100% higher odds (*27% higher odds for 0.1-unit-increases*) of being in **Overextended** compared to **Engagement** (OR = `{r} ORerr_overextended` , 95% CI\[`{r} lower_OR_overextended`,`{r} upper_OR_overextended`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_overextended`*,* *p* = `{r} p_values_overextended`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at baseline were associated with 600% higher odds (*20% higher odds for 0.1-unit-increases*) of being in **Ineffective** compared to **Engagement** (OR = `{r} ORerr_ineffective` , 95% CI\[`{r} lower_OR_ineffective`,`{r} upper_OR_ineffective`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_ineffective`*,* *p* = `{r} p_values_ineffective`.
+
+ERI predicting class memberships at **Follow-up 1:**
+
+```{r}
+
+lta_data_eri5f1 = lta_data_eri5 |> 
+  select(f01_class, f1_pprob, err1)
+
+#set reference level
+lta_data_eri5f1$f01_class = relevel(as.factor(lta_data_eri5f1$f01_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f01_class ~ err1, data = lta_data_eri5f1, weights = f1_pprob, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Disengaged
+# lower and upper CI on log-odds scale
+lower_log_disengaged = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_disengaged = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_disengaged = exp(lower_log_disengaged)
+upper_OR_disengaged = exp(upper_log_disengaged)
+
+# odds ratios
+ORerr_disengaged = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_disengaged = coef_mat[2,2] / se_mat[2,2]
+p_values_disengaged = 2 * (1 - pnorm(abs(z_stats_disengaged)))
+
+#####################
+#Overextended
+# lower and upper CI on log-odds scale
+lower_log_overextended = coef_mat[4,2] - 1.96 * se_mat[4,2]
+upper_log_overextended = coef_mat[4,2] + 1.96 * se_mat[4,2]
+
+# exponentiate: OR CI
+lower_OR_overextended = exp(lower_log_overextended)
+upper_OR_overextended = exp(upper_log_overextended)
+
+# odds ratios
+ORerr_overextended = exp(coef_mat[4,2])
+
+# Wald z-test
+z_stats_overextended = coef_mat[4,2] / se_mat[4,2]
+p_values_overextended = 2 * (1 - pnorm(abs(z_stats_overextended)))
+
+#####################
+#Ineffective
+
+lower_log_ineffective = coef_mat[3,2] - 1.96 * se_mat[3,2]
+upper_log_ineffective = coef_mat[3,2] + 1.96 * se_mat[3,2]
+
+# exponentiate: OR CI
+lower_OR_ineffective = exp(lower_log_ineffective)
+upper_OR_ineffective = exp(upper_log_ineffective)
+
+# odds ratios
+ORerr_ineffective = exp(coef_mat[3,2])
+
+# Wald z-test
+z_stats_ineffective = coef_mat[3,2] / se_mat[3,2]
+p_values_ineffective = 2 * (1 - pnorm(abs(z_stats_ineffective)))
+```
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at follow-up 1 were associated with 4200% higher odds (*45% higher odds for 0.1-unit-increases*) of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at follow-up 1 were associated with 3800% higher odds (*44% higher odds for 0.1-unit-increases*) of being in **Disengaged** compared to **Engagement** (OR = `{r} ORerr_disengaged` , 95% CI\[`{r} lower_OR_disengaged`,`{r} upper_OR_disengaged`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_disengaged`*,* *p* = `{r} p_values_disengaged`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at follow-up 1 were associated with 1400% higher odds (*30% higher odds for 0.1-unit-increases*) of being in **Overextended** compared to **Engagement** (OR = `{r} ORerr_overextended` , 95% CI\[`{r} lower_OR_overextended`,`{r} upper_OR_overextended`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_overextended`*,* *p* = `{r} p_values_overextended`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at follow-up 1 were associated with 500% higher odds (*19% higher odds for 0.1-unit-increases*) of being in **Ineffective** compared to **Engagement** (OR = `{r} ORerr_ineffective` , 95% CI\[`{r} lower_OR_ineffective`,`{r} upper_OR_ineffective`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_ineffective`*,* *p* = `{r} p_values_ineffective`.
+
+### Class memberships, pooled (3-profile) solution
+
+We cannot include posterior probabilities as regression weights for the pooled profile solution, as the pooling of three classes was a theory-driven, not data-driven, approach.
+
+```{r}
+#| label: ERI predicting class membership at various timepoints, pooled solution
+#| echo: false
+
+lta_data_eri3 = left_join(lta_data, eri_bl, by = "case")
+lta_data_eri3 = left_join(lta_data_eri3, eri_follow1, by = "case")
+lta_data_eri3 = left_join(lta_data_eri3, eri_follow2, by = "case")
+head(lta_data_eri3)
+
+```
+
+ERI predicting class membership at **baseline, pooled burnout profiles**:
+
+```{r}
+
+lta_data_eri3bl = lta_data_eri3 |> 
+  select(bl_class, errbl)
+
+#set reference level
+lta_data_eri3bl$bl_class = relevel(as.factor(lta_data_eri3bl$bl_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(bl_class ~ errbl, data = lta_data_eri3bl, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at **baseline** were associated with 1300% higher odds (*30% higher odds for 0.1-unit-increases*) of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at **baseline** were associated with 1000% higher odds (*26% higher odds for 0.1-unit-increases*) of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+ERI predicting class memberships at **follow-up 1, pooled burnout profiles**:
+
+```{r}
+
+lta_data_eri3f1 = lta_data_eri3 |> 
+  select(f01_class, err1)
+
+#set reference level
+lta_data_eri3f1$f01_class = relevel(as.factor(lta_data_eri3f1$f01_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f01_class ~ err1, data = lta_data_eri3f1, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at **follow-up 1** were associated with 2500% higher odds (*38% higher odds for 0.1-unit-increases*) of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher ERR scores** by 1 unit (i.e., more efforts required per reward) at **follow-up 1** were associated with 1250% higher odds (*29% higher odds for 0.1-unit-increases*) of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+### Transitions, pooled (3-class) solution
+
+ERI predicting the transitions between **pooled burnout profiles Baseline -\> Follow-up 1**
+
+```{r}
+#| label: ERI predicting BL->F01 pooled
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f01_class == "Burnout" ~ bl_class + bl_class:err1 - err1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.7 (~70% increase in likelihood, ~5% with 0.1 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.5
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #5.9
+p_val = burnoutcoef[4,4] #0.40
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #2.6 (~160% increase in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.3
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #5.2
+p_val = burnoutcoef[5,4] #0.01
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #18 (~1800% increase in likelihood, ~34% with 0.1 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0.2
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #1616
+p_val = burnoutcoef[6,4] #0.21
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f01_class == "Risk" ~ bl_class + bl_class:err1 - err1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #1.5 (~50% increase in likelihood, ~4% with 0.1 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.4
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #5.0
+p_val = riskcoef[4,4] #0.52
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #2.5 (~150% increase in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #1.4
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #4.5
+p_val = riskcoef[5,4] #0.003
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #7.8 (~780% increase in likelihood, ~23% with 0.1 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #3.9
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #15.9
+p_val = riskcoef[6,4] #0.00
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f01_class == "Engagement" ~ bl_class + bl_class:err1 - err1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.01 (~100% decrease in likelihood, ~40% with 0.1 units)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.00
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #0.5
+p_val = engagementcoef[4,4] #0.03
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.08 (~92% decrease in likelihood, ~22% with 0.1 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.0
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.2
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.12 (~88% decrease in likelihood, ~19% with 0.1 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.06
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.25
+p_val = engagementcoef[6,4] #0.00
+
+```
+
+... of transitions between **pooled burnout profiles F01 –\> F02:**
+
+```{r}
+#| label: ERI predicting F01->F02 pooled
+
+# Transition 1: Burnout1 → Burnout2 
+fit_to_Burnout1 = glm(
+  f02_class == "Burnout" ~ f01_class + f01_class:err2 - err2,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+#print(burnoutcoef[6,])
+exp(burnoutcoef[4,1]) #2.9 (1.11exp(burnoutcoef[4,1]))
+
+CI_low = exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.65
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #13
+p_val = burnoutcoef[4,4] #0.16
+
+# Transition 2: Risk1 → Burnout2 
+burnoutcoef = coef(summary(fit_to_Burnout1))
+#print(burnoutcoef[7,])
+exp(burnoutcoef[5,1]) #5.1 (1.18 10%)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #3.1
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #8.3
+p_val = burnoutcoef[5,4] #0.00
+
+# Transition 3: Engagement1 → Burnout2 
+burnoutcoef = coef(summary(fit_to_Burnout1))
+#print(burnoutcoef[9,])
+exp(burnoutcoef[6,1]) #32.4 (1.41 10%)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #2.2
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #471
+p_val = burnoutcoef[6,4] #0.01
+
+# Transition 4: Burnout1 → Risk2 
+fit_to_Disengaged1 = glm(
+  f02_class == "Risk" ~ f01_class + f01_class:err2 - err2,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_Disengaged1)
+
+disengagedcoef = coef(summary(fit_to_Disengaged1))
+#print(disengagedcoef[6,])
+exp(disengagedcoef[4,1]) #0.66 (0.96 10%)
+
+CI_low = exp(disengagedcoef[4,1] - 1.96 * disengagedcoef[4,2]) #0.1
+CI_high = exp(disengagedcoef[4,1] + 1.96 * disengagedcoef[4,2]) #3.1
+p_val = disengagedcoef[4,4] #0.60
+
+# Transition 5: Risk1 → Risk2 
+disengagedcoef = coef(summary(fit_to_Disengaged1))
+#print(disengagedcoef[7,])
+exp(disengagedcoef[5,1]) #0.67 (0.96 10%)
+
+CI_low = exp(disengagedcoef[5,1] - 1.96 * disengagedcoef[5,2]) #0.5
+CI_high = exp(disengagedcoef[5,1] + 1.96 * disengagedcoef[5,2]) #0.98
+p_val = disengagedcoef[5,4] #0.04
+
+# Transition 6: Engagement1 → Risk2 
+disengagedcoef = coef(summary(fit_to_Disengaged1))
+#print(disengagedcoef[9,])
+exp(disengagedcoef[6,1]) #5.1 (1.18 10%)
+
+CI_low = exp(disengagedcoef[6,1] - 1.96 * disengagedcoef[6,2]) #2.2
+CI_high = exp(disengagedcoef[6,1] + 1.96 * disengagedcoef[6,2]) #11.9
+p_val = disengagedcoef[6,4] #0.00
+
+# Transition 7: Burnout1 → Engagement2 
+fit_to_engagement = glm(
+  f02_class == "Engagement" ~ f01_class + f01_class:err2 - err2,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.13 (0.81 10%)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.00
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #2.2
+p_val = engagementcoef[4,4] #0.16
+
+# Transition 8: Risk1 → Engagement2 
+exp(engagementcoef[5,1]) #0.12 (0.80 10%)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.1
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.3
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement1 → Engagement2 
+exp(engagementcoef[6,1]) #0.15 (0.83 10%)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.06
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.36
+p_val = engagementcoef[6,4] #0.00
+```
+
+Does a difference variable containing (ERR at Follow-up 1 **minus** ERR at Baseline) predict transitions from baseline to follow-up 1?
+
+```{r}
+
+#| label: ERI difference variable predicting BL->F01 pooled
+
+lta_data_eri3 = lta_data_eri3 |> 
+  mutate(diff_f1minusbl = err1-errbl) 
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f01_class == "Burnout" ~ bl_class + bl_class:diff_f1minusbl - diff_f1minusbl,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #4.1 (~400% increase in likelihood, ~15% with 0.1 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #1.1
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #16
+p_val = burnoutcoef[4,4] #0.04
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #1.04 (~4% increase in likelihood, ~0% with 0.1 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #0.4
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #2.7
+p_val = burnoutcoef[5,4] #0.9
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #1216 (~inf% increase in likelihood, ~200% with 0.1 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0.8
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #1887345
+p_val = burnoutcoef[6,4] #0.06
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f01_class == "Risk" ~ bl_class + bl_class:diff_f1minusbl - diff_f1minusbl,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #0.69 (~31% decrease in likelihood, ~4% with 0.1 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.25
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #1.9
+p_val = riskcoef[4,4] #0.49
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #4.0 (~400% increase in likelihood, ~15% with 0.1 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #2.3
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #7.2
+p_val = riskcoef[5,4] #0.00
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #2.61 (~260% increase in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.2
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #5.6
+p_val = riskcoef[6,4] #0.01
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f01_class == "Engagement" ~ bl_class + bl_class:diff_f1minusbl - diff_f1minusbl,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.13 (~87% decrease in likelihood, ~18% with 0.1 units)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.02
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #0.82
+p_val = engagementcoef[4,4] #0.03
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.17 (~83% decrease in likelihood, ~16% with 0.1 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.1
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.3
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.34 (~66% decrease in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.16
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.75
+p_val = engagementcoef[6,4] #0.01
+
+```
+
+Does a difference variable (ERRfollowup2 **minus** ERRfollowup1) predict transitions from Follow-up 1 to Follow-up 2?
+
+```{r}
+#| label: ERI difference variable predicting F01->F02 pooled
+
+lta_data_eri3 = lta_data_eri3 |> 
+  mutate(diff_f2minusf1 = err2-err1) 
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f02_class == "Burnout" ~ f01_class + f01_class:diff_f2minusf1 - diff_f2minusf1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.8 (~80% increase in likelihood, ~6% with 0.1 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.3
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #12.8
+p_val = burnoutcoef[4,4] #0.56
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #2.5 (~250% increase in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.4
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #4.3
+p_val = burnoutcoef[5,4] #0.00
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #33.8 (~3300% increase in likelihood, ~42% with 0.1 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #1.2
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #965
+p_val = burnoutcoef[6,4] #0.04
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f02_class == "Risk" ~ f01_class + f01_class:diff_f2minusf1 - diff_f2minusf1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #0.61 (~40% decrease in likelihood, ~5% with 0.1 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.06
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #5.6
+p_val = riskcoef[4,4] #0.66
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #0.93 (~7% decrease in likelihood, ~1% with 0.1 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #0.6
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #1.5
+p_val = riskcoef[5,4] #0.75
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #4.1 (~400% increase in likelihood, ~15% with 0.1 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.4
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #12
+p_val = riskcoef[6,4] #0.01
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f02_class == "Engagement" ~ f01_class + f01_class:diff_f2minusf1 - diff_f2minusf1,
+  family = binomial,
+  data = lta_data_eri3)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.63 (~37% decrease in likelihood, ~4% with 0.1 units)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.03
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #12
+p_val = engagementcoef[4,4] #0.76
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.34 (~66% decrease in likelihood, ~10% with 0.1 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.18
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.66
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.20 (~80% decrease in likelihood, ~15% with 0.1 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.07
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.58
+p_val = engagementcoef[6,4] #0.00
+```
+
+## Burnout as predictor
+
+```{r warning = FALSE, message = FALSE}
+#| echo: false
+
+setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/data")
+burnout_bl = read_xlsx("Baseline - Burnout.xlsx")
+burnout_follow1 = read_xlsx("FU01 - Burnout.xlsx")
+burnout_follow2 = read_xlsx("FU02 - Burnout.xlsx")
+
+burnout_bl = burnout_bl |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-bl$")) 
+
+burnout_bl = burnout_bl |> 
+  dplyr::select(case, burnout_diagnosed) |> 
+  mutate(burnout_diagnosed = factor(burnout_diagnosed)) |> 
+  rename(burnout_bl = burnout_diagnosed)
+
+burnout_follow1 = burnout_follow1 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu01$")) 
+
+burnout_follow1 = burnout_follow1 |> 
+  dplyr::select(case, burnout_diagnosed) |> 
+  mutate(burnout_diagnosed = factor(burnout_diagnosed)) |> 
+  rename(burnout_f01 = burnout_diagnosed)
+
+burnout_follow2 = burnout_follow2 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu02$")) 
+
+burnout_follow2 = burnout_follow2 |> 
+  dplyr::select(case, burnout_diagnosed) |> 
+  mutate(burnout_diagnosed = factor(burnout_diagnosed)) |> 
+  rename(burnout_f02 = burnout_diagnosed)
+
+burnout_data = left_join(burnout_bl, burnout_follow1, by = "case")
+burnout_data = left_join(burnout_data, burnout_follow2, by = "case")
+
+lta_data_burnout = left_join(lta_data, burnout_data, by = "case")
+```
+
+**Descriptive differences in Burnout frequency** between profiles:
+
+```{r}
+table_data_bl = table(lta_data_burnout$bl_class, lta_data_burnout$burnout_bl)
+table_data_bl
+chisq.test(table_data_bl)
+```
+
+```{r}
+table_data_f01 = table(lta_data_burnout$f01_class, lta_data_burnout$burnout_f01)
+table_data_f01
+chisq.test(table_data_f01)
+```
+
+`{r} (table_data_f01[1,2]/(table_data_f01[1,1] + table_data_f01[1,2]))*100` % of participants in the Burnout profile have been diagnosed with Burnout at Follow-up 1 (as opposed to `{r} (table_data_bl[1,2]/(table_data_bl[1,1]) + table_data_bl[1,2])*100` at Baseline!)
+
+```{r}
+table_data_f02 = table(lta_data_burnout$f02_class, lta_data_burnout$burnout_f02)
+table_data_f02
+chisq.test(table_data_f02)
+```
+
+### Class memberships, pooled (3-profile) solution
+
+```{r}
+#| label: Burnout predicting class memberships
+
+lta_data_burnoutbl = lta_data_burnout |> 
+  select(bl_class, burnout_bl)
+
+#set reference level
+lta_data_burnoutbl$bl_class = relevel(as.factor(lta_data_burnoutbl$bl_class), ref = "Engagement")
+lta_data_burnoutbl$burnout_bl = relevel(as.factor(lta_data_burnoutbl$burnout_bl), ref = "0")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(bl_class ~ burnout_bl, data = lta_data_burnoutbl, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Having been diagnosed with Burnout** at **baseline** was associated with 140% higher odds of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Having been diagnosed with Burnout** at **baseline** was associated with 160% higher odds of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+ERI predicting class memberships at **follow-up 1, pooled burnout profiles**:
+
+```{r}
+lta_data_burnoutf1 = lta_data_burnout |> 
+  select(f01_class, burnout_f01)
+
+#set reference level
+lta_data_burnoutf1$f01_class = relevel(as.factor(lta_data_burnoutf1$f01_class), ref = "Engagement")
+lta_data_burnoutf1$burnout_f01 = relevel(as.factor(lta_data_burnoutf1$burnout_f01), ref = "0")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f01_class ~ burnout_f01, data = lta_data_burnoutf1, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Having been diagnosed with Burnout** at **follow-up 1** was associated with 550% higher odds of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Having been diagnosed with Burnout** at **follow-up 1** was associated with 180% higher odds of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+ERI predicting class memberships at **follow-up 2, pooled burnout profiles**:
+
+```{r}
+lta_data_burnoutf2 = lta_data_burnout |> 
+  select(f02_class, burnout_f02)
+
+#set reference level
+lta_data_burnoutf2$f02_class = relevel(as.factor(lta_data_burnoutf2$f02_class), ref = "Engagement")
+lta_data_burnoutf2$burnout_f02 = relevel(as.factor(lta_data_burnoutf2$burnout_f02), ref = "0")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f02_class ~ burnout_f02, data = lta_data_burnoutf2, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Having been diagnosed with Burnout** until **follow-up 2** was associated with 340% higher odds of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Having been diagnosed with Burnout** at **follow-up 2** was associated with 150% higher odds of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+### Transitions, pooled (3-profile) solution:
+
+**Baseline -\> Follow-up 1:**
+
+```{r}
+#| label: Burnout predicting BL->F01 pooled
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f01_class == "Burnout" ~ bl_class + bl_class:burnout_f01 - burnout_f01,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.14 (~14% increase in likelihood)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.3
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #3.8
+p_val = burnoutcoef[4,4] #0.83
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #2.68 (~168% increase in likelihood)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.1
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #6.5
+p_val = burnoutcoef[5,4] #0.03
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #0 (~0% increase in likelihood)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #Inf
+p_val = burnoutcoef[6,4] #0.99
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f01_class == "Risk" ~ bl_class + bl_class:burnout_f01 - burnout_f01,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #1.13 (~13% increase in likelihood)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.4
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #3.6
+p_val = riskcoef[4,4] #0.84
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #0.94 (~6% decrease in likelihood)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #0.5
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #1.6
+p_val = riskcoef[5,4] #0.81
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #3.0 (~200% increase in likelihood)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.5
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #5.8
+p_val = riskcoef[6,4] #0.00
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f01_class == "Engagement" ~ bl_class + bl_class:burnout_f01 - burnout_f01,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.44 (~56 % decrease in likelihood)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.04
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #4.5
+p_val = engagementcoef[4,4] #0.49
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.65 (~35% decrease in likelihood)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.3
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #1.3
+p_val = engagementcoef[5,4] #0.23
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.34 (~66% decrease in likelihood)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.18
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.66
+p_val = engagementcoef[6,4] #0.00
+```
+
+**Follow-up 1 -\> Follow-up 2**:
+
+```{r}
+#| label: Burnout predicting F01->F02 pooled
+
+# Transition 1: Burnout1 → Burnout2 
+fit_to_Burnout1 = glm(
+  f02_class == "Burnout" ~ f01_class + f01_class:burnout_f02 - burnout_f02,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.17 (~17% increase in likelihood)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.3
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #4.6
+p_val = burnoutcoef[4,4] #0.82
+
+# Transition 2: Risk1 → Burnout2 
+exp(burnoutcoef[5,1]) #1.7 (~70% increase in likelihood)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.1
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #2.6
+p_val = burnoutcoef[5,4] #0.02
+
+# Transition 3: Engagement1 → Burnout2 
+exp(burnoutcoef[6,1]) #7.4 (~640% increase in likelihood)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0.5
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #121
+p_val = burnoutcoef[6,4] #0.16
+
+# Transition 4: Burnout1 → Risk2 
+fit_to_risk = glm(
+  f02_class == "Risk" ~ f01_class + f01_class:burnout_f02 - burnout_f02,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #0.88 (~12% decrease in likelihood)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.2
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #4.2
+p_val = riskcoef[4,4] #0.86
+
+# Transition 5: Risk1 → Risk2 
+exp(riskcoef[5,1]) #0.90 (~10% decrease in likelihood)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #0.6
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #1.4
+p_val = riskcoef[5,4] #0.64
+
+# Transition 6: Engagement1 → Risk2 
+exp(riskcoef[6,1]) #2.6 (~160% increase in likelihood)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.2
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #5.9
+p_val = riskcoef[6,4] #0.02
+
+# Transition 7: Burnout1 → Engagement2
+fit_to_engagement = glm(
+  f02_class == "Engagement" ~ f01_class + f01_class:burnout_f02 - burnout_f02,
+  family = binomial,
+  data = lta_data_burnout)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.89 (62% decrease in likelihood)
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.1
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #7.1
+p_val = engagementcoef[4,4] #0.91
+
+# Transition 8: Risk1 → Engagement2 
+exp(engagementcoef[5,1]) #0.56 (~44% decrease in likelihood)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.3
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #1.0
+p_val = engagementcoef[5,4] #0.06
+
+# Transition 9: Engagement1 → Engagement2 
+exp(engagementcoef[6,1]) #0.34 (~66% decrease in likelihood)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.15
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.78
+p_val = engagementcoef[6,4] #0.01
+```
+
+## PHQ-9 as predictor
+
+```{r warning = FALSE, message = FALSE}
+#| echo: false
+
+setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/data")
+library(readr)
+depression_bl = read_delim("export_phq9_bl_20240620.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+depression_follow1 = read_delim("export_phq9_fu01_20240620.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+depression_follow2 = read_delim("export_phq9_fu02_20240620.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+depression_bl = depression_bl |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-bl$")) |> 
+  dplyr::select(-PHQ9_10)
+
+any(is.na(depression_bl[, paste0("PHQ9_", 1:9)]))
+
+depression_bl = depression_bl |> 
+  group_by(case) |> 
+  mutate(depression_score = sum(c_across(starts_with("PHQ9_")))) |> 
+  ungroup()
+depression_bl = depression_bl |> 
+  dplyr::select(case, depression_score) |> 
+  rename(depression_score_bl = depression_score)
+
+depression_follow1 = depression_follow1 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu01$")) |> 
+  dplyr::select(-PHQ9_10)
+
+any(is.na(depression_follow1[, paste0("PHQ9_", 1:9)]))
+
+depression_follow1 = depression_follow1 |> 
+  group_by(case) |> 
+  mutate(depression_score = sum(c_across(starts_with("PHQ9_")))) |> 
+  ungroup()
+depression_follow1 = depression_follow1 |> 
+  dplyr::select(case, depression_score) |> 
+  rename(depression_score_f01 = depression_score)
+
+depression_follow2 = depression_follow2 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu02$")) |> 
+  dplyr::select(-PHQ9_10)
+
+any(is.na(depression_follow2[, paste0("PHQ9_", 1:9)]))
+
+depression_follow2 = depression_follow2 |> 
+  group_by(case) |> 
+  mutate(depression_score = sum(c_across(starts_with("PHQ9_")))) |> 
+  ungroup()
+depression_follow2 = depression_follow2 |> 
+  dplyr::select(case, depression_score) |> 
+  rename(depression_score_f02 = depression_score)
+
+
+depression_data = left_join(depression_bl, depression_follow1, by = "case")
+depression_data = left_join(depression_data, depression_follow2, by = "case")
+
+lta_data_depression = left_join(lta_data, depression_data, by = "case")
+```
+
+The extent of missing data is not critical, but noteworthy: `{r} colSums(is.na(lta_data_depression["depression_score_bl"]))` , `{r} colSums(is.na(lta_data_depression["depression_score_f01"]))` , `{r} colSums(is.na(lta_data_depression["depression_score_f02"]))`
+
+**Descriptive differences in PHQ-9 depression scores** between respective profiles:
+
+```{r}
+table_data_bl = table(lta_data_depression$bl_class, lta_data_depression$depression_score_bl)
+table_data_bl
+chisq.test(table_data_bl)
+mean_burnout = with(lta_data_depression, mean(depression_score_bl[bl_class == "Burnout"], na.rm = TRUE))
+mean_risk = with(lta_data_depression, mean(depression_score_bl[bl_class == "Risk"], na.rm = TRUE))
+mean_engagement = with(lta_data_depression, mean(depression_score_bl[bl_class == "Engagement"], na.rm = TRUE))
+```
+
+**At baseline,** mean PHQ-9 scores for the burnout class amount to `{r} mean_burnout` , whereas the risk class has a mean PHQ-9 score of `{r} mean_risk` and the engagement class of `{r} mean_engagement` . These differences are **highly significant**, as shown by the Chi-squared test above.
+
+```{r}
+table_data_f01 = table(lta_data_depression$f01_class, lta_data_depression$depression_score_f01)
+table_data_f01
+chisq.test(table_data_f01)
+mean_burnout = with(lta_data_depression, mean(depression_score_f01[f01_class == "Burnout"], na.rm = TRUE))
+mean_risk = with(lta_data_depression, mean(depression_score_f01[f01_class == "Risk"], na.rm = TRUE))
+mean_engagement = with(lta_data_depression, mean(depression_score_f01[f01_class == "Engagement"], na.rm = TRUE))
+```
+
+**At follow-up 1,** mean PHQ-9 scores for the burnout class amount to `{r} mean_burnout` , whereas the risk class has a mean PHQ-9 score of `{r} mean_risk` and the engagement class of `{r} mean_engagement` . These differences are **highly significant**, as shown by the Chi-squared test above.
+
+```{r}
+table_data_f02 = table(lta_data_depression$f02_class, lta_data_depression$depression_score_f02)
+table_data_f02
+chisq.test(table_data_f02)
+mean_burnout = with(lta_data_depression, mean(depression_score_f02[f02_class == "Burnout"], na.rm = TRUE))
+mean_risk = with(lta_data_depression, mean(depression_score_f02[f02_class == "Risk"], na.rm = TRUE))
+mean_engagement = with(lta_data_depression, mean(depression_score_f02[f02_class == "Engagement"], na.rm = TRUE))
+```
+
+**At follow-up 2**, mean PHQ-9 scores for the burnout class amount to `{r} mean_burnout` , whereas the risk class has a mean PHQ-9 score of `{r} mean_risk` and the engagement class of `{r} mean_engagement` . These differences are **highly significant**, as shown by the Chi-squared test above.
+
+### Class memberships, pooled (3-profile) solution:
+
+**PHQ-9 predicting class memberships at baseline:**
+
+```{r}
+#| label: Depression predicting class memberships
+
+lta_data_depressionbl = lta_data_depression |> 
+  select(bl_class, depression_score_bl)
+
+#set reference level
+lta_data_depressionbl$bl_class = relevel(as.factor(lta_data_depressionbl$bl_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(bl_class ~ depression_score_bl, data = lta_data_depressionbl, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher PHQ-9 depression scores** at **baseline** were associated with **63% higher odds** of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher PHQ-9 depression scores** at **baseline** were associated with **35% higher odds** of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+**PHQ-9 predicting class memberships at follow-up 1**:
+
+```{r}
+#| label: Depression predicting class memberships f01
+
+lta_data_depressionf01 = lta_data_depression |> 
+  select(f01_class, depression_score_f01)
+
+#set reference level
+lta_data_depressionf01$f01_class = relevel(as.factor(lta_data_depressionf01$f01_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f01_class ~ depression_score_f01, data = lta_data_depressionf01, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher PHQ-9 depression scores** at **follow-up 1** were associated with **86% higher odds** of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher PHQ-9 depression scores** at **follow-up 1** were associated with **52% higher odds** of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+**PHQ-9 predicting class memberships at follow-up 2:**
+
+```{r}
+#| label: Depression predicting class memberships f02
+
+lta_data_depressionf02 = lta_data_depression |> 
+  select(f02_class, depression_score_f02)
+
+#set reference level
+lta_data_depressionf02$f02_class = relevel(as.factor(lta_data_depressionf02$f02_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f02_class ~ depression_score_f02, data = lta_data_depressionf02, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher PHQ-9 depression scores** at **follow-up 2** were associated with **82% higher odds** of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher PHQ-9 depression scores** at **follow-up 2** were associated with **46% higher odds** of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+### Transitions, pooled (3-profile) solution:
+
+**PHQ-9 predicting transitions from Baseline -\> Follow-up 1:**
+
+```{r}
+#| label: PHQ-9 predicting BL->F01 pooled
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f01_class == "Burnout" ~ bl_class + bl_class:depression_score_f01 - depression_score_f01,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.17 (~17% increase in likelihood, 390% with 10 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #1.0
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #1.3
+p_val = burnoutcoef[4,4] #0.03
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #1.2 (~20% increase in likelihood, 500% with 10 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.1
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #1.3
+p_val = burnoutcoef[5,4] #0.00
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #1.35 (~35% increase in likelihood, 1800% with 10 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0.9
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #1.8
+p_val = burnoutcoef[6,4] #0.09
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f01_class == "Risk" ~ bl_class + bl_class:depression_score_f01 - depression_score_f01,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #0.93 (~7% decrease in likelihood, 48% with 10 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.8
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #1.1
+p_val = riskcoef[4,4] #0.29
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #1.1 (~10% increase in likelihood, 186% with 10 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #1.0
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #1.2
+p_val = riskcoef[5,4] #0.001
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #1.51 (~51% increase in likelihood, 5000% with 10 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.4
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #1.7
+p_val = riskcoef[6,4] #0.00
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f01_class == "Engagement" ~ bl_class + bl_class:depression_score_f01 - depression_score_f01,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.75 (~25% decrease in likelihood, 94% with 10 units) 
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.6
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #1.1
+p_val = engagementcoef[4,4] #0.06
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.73 (~27% decrease in likelihood, 95% with 10 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.7
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.8
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.65 (~35% decrease in likelihood, 98% with 10 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.6
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.7
+p_val = engagementcoef[6,4] #0.00
+```
+
+**PHQ-9 predicting transitions from Follow-up 1 -\> Follow-up 2**:
+
+```{r}
+#| label: PHQ-9 predicting F01->F02 pooled
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f02_class == "Burnout" ~ f01_class + f01_class:depression_score_f02 - depression_score_f02,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #1.27 (~27% increase in likelihood, 987% with 10 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #1.1
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #1.5
+p_val = burnoutcoef[4,4] #0.01
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #1.28 (~28% increase in likelihood, 1067% with 10 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #1.2
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #1.4
+p_val = burnoutcoef[5,4] #0.00
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #1.35 (~35% increase in likelihood, 1900% with 10 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #1.1
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #1.7
+p_val = burnoutcoef[6,4] #0.02
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f02_class == "Risk" ~ f01_class + f01_class:depression_score_f02 - depression_score_f02,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #0.95 (~5% decrease in likelihood, 41% with 10 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.8
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #1.1
+p_val = riskcoef[4,4] #0.53
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #0.94 (~5% decrease in likelihood, 44% with 10 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #0.90
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #0.99
+p_val = riskcoef[5,4] #0.01
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #1.31 (~31% increase in likelihood, 1370% with 10 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #1.2
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #1.5
+p_val = riskcoef[6,4] #0.00
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f02_class == "Engagement" ~ f01_class + f01_class:depression_score_f02 - depression_score_f02,
+  family = binomial,
+  data = lta_data_depression)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #0.38 (~62% decrease in likelihood, 99% with 10 units) 
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.1
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #1.2
+p_val = engagementcoef[4,4] #0.09
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #0.72 (~28% decrease in likelihood, 95% with 10 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #0.7
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #0.8
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #0.74 (~26% decrease in likelihood, 95% with 10 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #0.70
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #0.8
+p_val = engagementcoef[6,4] #0.00
+```
+
+## Social Support as predictor
+
+```{r}
+#| echo: false
+
+setwd("C:/Users/simon/Nextcloud2/Shared/LPA - Simon/04_longitudinal_analyses/data")
+social_follow1 = read_delim("export_fsozu_fu01_20241023.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+social_follow2 = read_delim("export_fsozu_fu02_20240620.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+social_follow1 = social_follow1 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu01$")) 
+
+any(is.na(social_follow1[, paste0("F_SozU_", 1:14)]))
+
+social_follow1 = social_follow1 |> 
+  group_by(case) |> 
+  mutate(socialsupport = sum(c_across(starts_with("F_SozU_")))) |> 
+  ungroup()
+social_follow1 = social_follow1 |> 
+  dplyr::select(case, socialsupport) |> 
+  rename(socialsupportf01 = socialsupport)
+
+social_follow2 = social_follow2 |> 
+  rename(case = ProbCode) |> 
+  mutate(case = str_remove(case, "-fu02$")) 
+
+any(is.na(social_follow2[, paste0("F_SozU_", 1:14)]))
+
+social_follow2 = social_follow2 |> 
+  group_by(case) |> 
+  mutate(socialsupport = sum(c_across(starts_with("F_SozU_")))) |> 
+  ungroup()
+social_follow2 = social_follow2 |> 
+  dplyr::select(case, socialsupport) |> 
+  rename(socialsupportf02 = socialsupport)
+
+social_data = left_join(social_follow1, social_follow2, by = "case")
+lta_data_social = left_join(lta_data, social_data, by = "case")
+```
+
+**Descriptive differences in Social Support between respective profiles:**
+
+```{r}
+table_data_f01 = table(lta_data_social$f01_class, lta_data_social$socialsupportf01)
+table_data_f01
+chisq.test(table_data_f01)
+mean_burnout = with(lta_data_social, mean(socialsupportf01[f01_class == "Burnout"], na.rm = TRUE))
+mean_risk = with(lta_data_social, mean(socialsupportf01[f01_class == "Risk"], na.rm = TRUE))
+mean_engagement = with(lta_data_social, mean(socialsupportf01[f01_class == "Engagement"], na.rm = TRUE))
+```
+
+**At follow-up 1,** mean social support scores for the burnout class amounted to `{r} mean_burnout` , whereas the risk class had a higher social support score of `{r} mean_risk` and the engagement class of `{r} mean_engagement` . These differences are **highly significant**, as shown by the Chi-squared test above.
+
+```{r}
+table_data_f02 = table(lta_data_social$f02_class, lta_data_social$socialsupportf02)
+table_data_f02
+chisq.test(table_data_f02)
+mean_burnout = with(lta_data_social, mean(socialsupportf02[f02_class == "Burnout"], na.rm = TRUE))
+mean_risk = with(lta_data_social, mean(socialsupportf02[f02_class == "Risk"], na.rm = TRUE))
+mean_engagement = with(lta_data_social, mean(socialsupportf02[f02_class == "Engagement"], na.rm = TRUE))
+```
+
+**At follow-up 2,** mean social support scores for the burnout class amounted to `{r} mean_burnout` , whereas the risk class had a higher social support score of `{r} mean_risk` and the engagement class of `{r} mean_engagement` . These differences are **highly significant**, as shown by the Chi-squared test above.
+
+### Class memberships, pooled (3-profile) solution:
+
+**Social Support predicting class memberships at Follow-up 1:**
+
+```{r}
+#| label: Social support predicting class memberships
+
+lta_data_socialf01 = lta_data_social |> 
+  select(f01_class, socialsupportf01)
+
+#set reference level
+lta_data_socialf01$f01_class = relevel(as.factor(lta_data_socialf01$f01_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f01_class ~ socialsupportf01, data = lta_data_socialf01, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher social support** at **follow-up 1** was associated with **12% lower odds** of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher social support** at **follow-up 1** were associated with **7% lower odds** of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+**Social support predicting class memberships at Follow-up 2:**
+
+```{r}
+#| label: Social support predicting class memberships f02
+
+lta_data_socialf02 = lta_data_social |> 
+  select(f02_class, socialsupportf02)
+
+#set reference level
+lta_data_socialf02$f02_class = relevel(as.factor(lta_data_socialf02$f02_class), ref = "Engagement")
+
+# Class as outcome, err as predictor, weights = posterior probabilities
+mod_err = multinom(f02_class ~ socialsupportf02, data = lta_data_socialf02, trace = FALSE)
+summary(mod_err)
+baseline = summary(mod_err)
+
+# extract coefficients + SEs
+coef_mat = baseline$coefficients
+se_mat   = baseline$standard.errors
+
+##################
+#Burnout
+# lower and upper CI on log-odds scale
+lower_log_burnout = coef_mat[1,2] - 1.96 * se_mat[1,2]
+upper_log_burnout = coef_mat[1,2] + 1.96 * se_mat[1,2]
+
+# exponentiate: OR CI
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+ORerr_burnout = exp(coef_mat[1,2])
+
+# Wald z-test
+z_stats_burnout = coef_mat[1,2] / se_mat[1,2]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+####################
+#Risk
+# lower and upper CI on log-odds scale
+lower_log_risk = coef_mat[2,2] - 1.96 * se_mat[2,2]
+upper_log_risk = coef_mat[2,2] + 1.96 * se_mat[2,2]
+
+# exponentiate: OR CI
+lower_OR_risk = exp(lower_log_risk)
+upper_OR_risk = exp(upper_log_risk)
+
+# odds ratios
+ORerr_risk = exp(coef_mat[2,2])
+
+# Wald z-test
+z_stats_risk = coef_mat[2,2] / se_mat[2,2]
+p_values_risk = 2 * (1 - pnorm(abs(z_stats_risk)))
+```
+
+**Higher social support** at **follow-up 1** was associated with **10% lower odds** of being in **Burnout** compared to **Engagement** (OR = `{r} ORerr_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_burnout`*,* *p* = `{r} p_values_burnout`.
+
+**Higher social support** at **follow-up 1** were associated with **5% lower odds** of being in **Risk** compared to **Engagement** (OR = `{r} ORerr_risk` , 95% CI\[`{r} lower_OR_risk`,`{r} upper_OR_risk`\]. Wald z-tests further indicated that this difference in likelihood was **significant**, *z* = `{r} z_stats_risk`*,* *p* = `{r} p_values_risk`.
+
+### Transitions, pooled (3-profile) solution:
+
+**Social support predicting transitions from Follow-up 1 -\> Follow-up 2:**
+
+```{r}
+#| label: Social support predicting F01->F02 pooled
+
+# Transition 1: Burnout0 → Burnout1 
+fit_to_Burnout1 = glm(
+  f02_class == "Burnout" ~ f01_class + f01_class:socialsupportf02 - socialsupportf02,
+  family = binomial,
+  data = lta_data_social)
+
+summary(fit_to_Burnout1)
+
+burnoutcoef = coef(summary(fit_to_Burnout1))
+exp(burnoutcoef[4,1]) #0.90 (~10% decrease in likelihood, ~64% decrease 10 units)
+
+CI_low =  exp(burnoutcoef[4,1] - 1.96 * burnoutcoef[4,2]) #0.8
+CI_high = exp(burnoutcoef[4,1] + 1.96 * burnoutcoef[4,2]) #0.9
+p_val = burnoutcoef[4,4] #0.01
+
+# Transition 2: Risk0 → Burnout1 
+exp(burnoutcoef[5,1]) #0.95 (~5% decrease in likelihood, 38% decrease 10 units)
+
+CI_low = exp(burnoutcoef[5,1] - 1.96 * burnoutcoef[5,2]) #0.93
+CI_high = exp(burnoutcoef[5,1] + 1.96 * burnoutcoef[5,2]) #0.97
+p_val = burnoutcoef[5,4] #0.00
+
+# Transition 3: Engagement0 → Burnout1 
+exp(burnoutcoef[6,1]) #0.95 (~5% decrease in likelihood, 37% decrease 10 units)
+
+CI_low = exp(burnoutcoef[6,1] - 1.96 * burnoutcoef[6,2]) #0.8
+CI_high = exp(burnoutcoef[6,1] + 1.96 * burnoutcoef[6,2]) #1.1
+p_val = burnoutcoef[6,4] #0.46
+
+# Transition 4: Burnout0 → Risk1 
+fit_to_risk = glm(
+  f02_class == "Risk" ~ f01_class + f01_class:socialsupportf02 - socialsupportf02,
+  family = binomial,
+  data = lta_data_social)
+
+summary(fit_to_risk)
+
+riskcoef = coef(summary(fit_to_risk))
+exp(riskcoef[4,1]) #1.06 (~6% increase in likelihood, 70% with 10 units)
+
+CI_low = exp(riskcoef[4,1] - 1.96 * riskcoef[4,2]) #0.99
+CI_high = exp(riskcoef[4,1] + 1.96 * riskcoef[4,2]) #1.1
+p_val = riskcoef[4,4] #0.14
+
+# Transition 5: Risk0 → Risk1 
+exp(riskcoef[5,1]) #1.01 (~1% increase in likelihood, 20% with 10 units)
+
+CI_low = exp(riskcoef[5,1] - 1.96 * riskcoef[5,2]) #0.99
+CI_high = exp(riskcoef[5,1] + 1.96 * riskcoef[5,2]) #1.04
+p_val = riskcoef[5,4] #0.06
+
+# Transition 6: Engagement0 → Risk1 
+exp(riskcoef[6,1]) #0.94 (~6% decrease in likelihood, 45% with 10 units)
+
+CI_low = exp(riskcoef[6,1] - 1.96 * riskcoef[6,2]) #0.91
+CI_high = exp(riskcoef[6,1] + 1.96 * riskcoef[6,2]) #0.94
+p_val = riskcoef[6,4] #0.00
+
+# Transition 7: Burnout0 → Engagement1
+fit_to_engagement = glm(
+  f02_class == "Engagement" ~ f01_class + f01_class:socialsupportf02 - socialsupportf02,
+  family = binomial,
+  data = lta_data_social)
+
+summary(fit_to_engagement)
+engagementcoef = coef(summary(fit_to_engagement))
+exp(engagementcoef[4,1]) #1.17 (~17% increase in likelihood, 360% with 10 units) 
+
+CI_low = exp(engagementcoef[4,1] - 1.96 * engagementcoef[4,2]) #0.99
+CI_high = exp(engagementcoef[4,1] + 1.96 * engagementcoef[4,2]) #1.4
+p_val = engagementcoef[4,4] #0.05
+
+# Transition 8: Risk0 → Engagement1 
+exp(engagementcoef[5,1]) #1.04 (~4% increase in likelihood, 50% with 10 units)
+
+CI_low = exp(engagementcoef[5,1] - 1.96 * engagementcoef[5,2]) #1.0
+CI_high = exp(engagementcoef[5,1] + 1.96 * engagementcoef[5,2]) #1.1
+p_val = engagementcoef[5,4] #0.00
+
+# Transition 9: Engagement0 → Engagement1 
+exp(engagementcoef[6,1]) #1.06 (~6% increase in likelihood, 85% with 10 units)
+
+CI_low = exp(engagementcoef[6,1] - 1.96 * engagementcoef[6,2]) #1.02
+CI_high = exp(engagementcoef[6,1] + 1.96 * engagementcoef[6,2]) #1.1
+p_val = engagementcoef[6,4] #0.00
+```
+
+### Social Support as protective factor
+
+We aim to identify a potential buffering effect of social support on the negative effects of burnout/depression/ERR on class membership and transitions. So does higher social support attenuate the association between burnout/depression/ERR and worse states?
+
+```{r}
+#| label: buffering effects of social support
+
+buffering = left_join(lta_data_social, lta_data_burnout, by = "case")
+buffering = left_join(buffering, lta_data_eri3, by = "case")
+buffering = left_join(buffering, lta_data_depression, by = "case")
+
+buffering = buffering |> 
+  select(case, bl_class.x, f01_class.x, f02_class.x, socialsupportf01, socialsupportf02, burnout_bl, burnout_f01, burnout_f02, errbl, err1, err2, depression_score_bl, depression_score_f01, depression_score_f02)
+
+buffering = buffering |> 
+  mutate(
+    socialsupportf01_c = scale(socialsupportf01),
+    err1_c = scale(err1),
+    err2_c = scale(err1),
+    depressionf01_c = scale(depression_score_f01),
+    depressionf02_c = scale(depression_score_f02))
+buffering = buffering |> 
+  rename(bl_class = bl_class.x,
+         f01_class = f01_class.x,
+         f02_class = f02_class.x)
+
+```
+
+**Social support buffering the detrimental effects of burnout on class membership at Follow-up 1:**
+
+```{r}
+buffering$f01_class = relevel(as.factor(buffering$f01_class),ref = "Engagement")
+
+mod_burn = multinom(f01_class ~ socialsupportf01_c*burnout_f01, data = buffering, trace = FALSE)
+summary(mod_burn)
+burn = summary(mod_burn)
+
+coef_mat = burn$coefficients
+se_mat   = burn$standard.errors
+
+lower_log_burnout = coef_mat[1,4] - 1.96 * se_mat[1,4]
+upper_log_burnout = coef_mat[1,4] + 1.96 * se_mat[1,4]
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+OR_burnout = exp(coef_mat[1,4])
+
+z_stats_burnout = coef_mat[1,4] / se_mat[1,4]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+ggeffect(mod_burn, terms = c("socialsupportf01_c", "burnout_f01"))
+plot(ggeffect(mod_burn, terms = c("socialsupportf01_c", "burnout_f01")), colors = c("firebrick4", "goldenrod2"), use_theme = TRUE)
+
+```
+
+A multinomial logistic regression revealed a **significant interaction between burnout diagnosis and social support predicting membership in the Burnout class** (OR = `{r} OR_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\], p = `{r} p_values_burnout`). As illustrated in the figure, individuals with a burnout diagnosis showed a substantially higher probability of being in the Burnout class at low levels of social support. However, **this effect decreased with increasing social support, indicating a buffering effect**. No significant interaction was observed for the Risk class.
+
+**Social support buffering the detrimental effects of a bad ERR on class membership at Follow-up 1:**
+
+```{r}
+#convert ERR to factor variable <1 and >1
+buffering = buffering |> 
+  mutate(err1_c = as.numeric(err1_c),
+         err1_c_factor = case_when(err1_c <= 0 ~ "< 0",
+                                   err1_c >= 0 ~ "> 0"))
+
+mod_burn = multinom(f01_class ~ socialsupportf01_c*err1_c_factor, data = buffering, trace = FALSE)
+summary(mod_burn)
+burn = summary(mod_burn)
+
+coef_mat = burn$coefficients
+se_mat   = burn$standard.errors
+
+lower_log_burnout = coef_mat[1,4] - 1.96 * se_mat[1,4]
+upper_log_burnout = coef_mat[1,4] + 1.96 * se_mat[1,4]
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+OR_burnout = exp(coef_mat[1,4])
+
+z_stats_burnout = coef_mat[1,4] / se_mat[1,4]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+#convert ERR to factor variable <1 and >1
+buffering = buffering |> 
+  mutate(err1_c = as.numeric(err1_c),
+         err1_c_factor = case_when(err1_c <= 0 ~ "< 0",
+                                   err1_c >= 0 ~ "> 0"))
+
+plot(ggeffect(mod_burn, terms = c("socialsupportf01_c", "err1_c_factor")),colors = c("navy", "coral2"), use_theme = TRUE)
+
+```
+
+A multinomial logistic regression revealed a non-significant interaction between the effort-reward ratio and social support predicting membership in the Burnout class (OR = `{r} OR_burnout` , 95% CI\[`{r} lower_OR_burnout`,`{r} upper_OR_burnout`\], p = `{r} p_values_burnout`). As illustrated in the figure, individuals with a burnout diagnosis showed a substantially higher probability of being in the Burnout class at low levels of social support. However, **this effect decreased with increasing social support, indicating a buffering effect**. No significant interaction was observed for the Risk class.
+
+**Interaction between ERI and burnout at Baseline:**
+
+```{r}
+buffering$bl_class = relevel(as.factor(buffering$bl_class),ref = "Engagement")
+
+mod_burn = multinom(bl_class ~ errbl_c*burnout_f01, data = buffering, trace = FALSE)
+summary(mod_burn)
+burn = summary(mod_burn)
+
+coef_mat = burn$coefficients
+se_mat   = burn$standard.errors
+
+lower_log_burnout = coef_mat[1,4] - 1.96 * se_mat[1,4]
+upper_log_burnout = coef_mat[1,4] + 1.96 * se_mat[1,4]
+lower_OR_burnout = exp(lower_log_burnout)
+upper_OR_burnout = exp(upper_log_burnout)
+
+# odds ratios
+OR_burnout = exp(coef_mat[1,4])
+
+z_stats_burnout = coef_mat[1,4] / se_mat[1,4]
+p_values_burnout = 2 * (1 - pnorm(abs(z_stats_burnout)))
+
+ggeffect(mod_burn, terms = c("socialsupportf01_c", "burnout_f01"))
+plot(ggeffect(mod_burn, terms = c("socialsupportf01_c", "burnout_f01")), colors = c("firebrick4", "goldenrod2"), use_theme = TRUE)
+```
+
+**Interaction between ERI and burnout at Follow-up 1:**
+
+**Interaction between ERI and burnout at Follow-up 2:**
+
+**Interaction between ERI and PHQ-9 at Baseline:**
+
+**Interaction between ERI and PHQ-9 at Follow-up 1:**
+
+**Interaction between ERI and PHQ-9 at Follow-up 2:**
+
+**Social support buffering the detrimental effects of depression on class membership at Follow-up 1:**
+
+Here I could even turn PHQ-9 scores into categories and then plot the results as well...
+
+**Social support buffering the detrimental effects of burnout on class membership at Follow-up 2:**
+
+**Social support buffering the detrimental effects of a bad ERR on class membership at Follow-up 2:**
+
+**Social support buffering the detrimental effects of depression on class membership at Follow-up 2:**
+
+**Social support buffering the detrimental effects of burnout on the transition to worse states Baseline-\> Follow-up 1:**
+
+```{r}
+model <- glm(
+  transition_worse ~ depression * social_support_c,
+  data = your_data,
+  family = binomial
+)
+#Probe the interaction:
+
+library(interactions)
+interact_plot(
+  mod_burn,
+  pred = burnout_f01,		#or switch pred with modx?
+  modx = socialsupportf01_c)
+```
